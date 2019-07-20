@@ -1,0 +1,20 @@
+{
+  "name": "egg-example",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "egg-bin dev"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "egg": "^2.22.2",
+    "egg-mongo-native": "^3.4.3",
+    "lodash": "^4.17.11"
+  },
+  "devDependencies": {
+    "egg-bin": "^4.13.0"
+  }
+}
