@@ -2,6 +2,7 @@ const Subscription = require('egg').Subscription;
 const cheerio = require('cheerio');
 const _ = require("lodash")
 const { ObjectId } = require('bson');
+var UUID = require('uuid');
 
 /**
  * 1、分页请求试题列表
@@ -23,10 +24,7 @@ class Question extends Subscription {
 
     // subscribe 是真正定时任务执行时被运行的函数
     async subscribe() {
-
-
         let task = await this.getTask();
-
         //task = { "_id": "5d283a6306e3106405111380", "pk": "24ee832a-4fb9-4a7b-9717-74675185918a~589da93d-577e-4315-999d-b28767f565bc~P4", "ct": "2", "dg": "12", "fg": "8", "so": "6", "pageCurrent": 1, "pageTotal": 1, "preProcess": 0, "questionTotal": 0, "complete": -1, "running": 0, "url": "http://www.jyeoo.com/math/ques/search" };
         if (!task) {
             console.log("no task");
@@ -93,6 +91,7 @@ class Question extends Subscription {
             return;
         }
 
+       
 
         let questionArr = {};
         try {
@@ -106,6 +105,8 @@ class Question extends Subscription {
 
         this.app.logger.debug("pageTotal =  " + questionArr.pageTotal + ",  questionTotal=" + questionArr.questionTotal)
 
+        
+        await this.saveQuestionStem(task, questionArr.questions)
         await this.updateProxy(proxy, true);
         await this.updateTask(task, task.pageCurrent, questionArr.pageTotal, questionArr.questionTotal)
 
@@ -178,6 +179,38 @@ class Question extends Subscription {
         return { questions: resultArr, pageCurrent: pageCurrent, pageTotal: pageTotal, questionTotal: questionTotal };
     }
 
+    
+    /**
+     * 保存试题
+     * @param {Object} task 任务对象
+     * @param {Array} questions 试题数组
+     */
+    async saveQuestionStem(task, questions) {
+
+        if(questions.length <= 0)
+            return;
+
+        if (task.questionTotal > questions.length) {
+            this.app.logger.debug(`no no no task.questionTotal=${task.questionTotal}  questions.length=${questions.length}`)
+        }
+        let { section, subject } = await this.app.mongo.findOne("TeachingMeterial", { query: { bk: task.pk.split("~")[0] } })
+        for (let question of questions) {
+            question.id = UUID.v1();
+            question.catalogs = [{
+                q: task.pk, //目录&知识点id
+                fg: task.fg,//题类
+                so: task.so,//来源
+                dg: task.dg,//难度
+                ct: task.ct,//题型
+                section: section,
+                subject: subject
+            }];
+        }
+
+        await this.app.mongo.insertMany("Question", { docs: questions })
+    }
+
+
 
     /**
      * 获取一个需要预处理的任务
@@ -210,7 +243,7 @@ class Question extends Subscription {
     async updateTask(task, pageCurrent, pageTotal, questionTotal) {
         let mc = this.app.mongo.db.collection("Task");
         let complete = -1;
-        if (questionTotal == 0)
+        if (questionTotal == 0 || pageTotal == 1)
             complete = 1
         await mc.update({ _id: new ObjectId(task._id) }, {
             $set: {

@@ -5,50 +5,81 @@ class Task extends Subscription {
     // 通过 schedule 属性来设置定时任务的执行间隔等配置
     static get schedule() {
         return {
-            interval: "300s", // 5 分钟间隔
-            type: 'all', // 指定所有的 worker 都需要执行
+            interval: "300h", // 5 分钟间隔
+            type: 'worker', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: true
         };
     }
 
     async subscribe() {
-        let subject = "数学", section = "初中";
-        let searchConditionArr = this.getSearchCondition();
-        let catalogDataArr = await this.app.mongo.aggregate("catalog", {
-            pipeline: [
-                { "$match": { subject: subject, section: section, pk1: { $regex: /^.{2}$/ } } }
-                , { "$group": { _id: { subject: "$subject", section: "$section", "nm": "$nm" }, count: { "$sum": 1 }, pk: { $first: "$pk" } } }
-                , { "$project": { _id: 0, nm: "$_id.nm", pk: "$pk", count: "$count" } }
-            ]
-        })
-        for (let catalogData of catalogDataArr) {
 
-            let taskArr = [];
-            for (let searchCondition of searchConditionArr) {
+        let subjectArr = await this.app.mongo.find("Subject", {});
 
-                let task = Object.assign({}, { pk: catalogData.pk }, searchCondition, {
-                    complete: -1, //  -1 未开始   0进行中  1完成
-                    pageCurrent: 1,
-                    pageTotal: 1,
-                    preProcess:0,//是否预处理 1已经预处理
 
-                    running:0,
-                    questionTotal:0,
-                })
-                taskArr.push(task)
+        let count = 0;
+        for (let subject of subjectArr) {
+            //let searchConditionArr = this.getSearchCondition(subject);
+
+            let catalogDataArr = await this.app.mongo.aggregate("catalog", {
+                pipeline: [
+                    { "$match": { subject: subject.subject, section: subject.section, lastLevel: true } }
+                    , { "$group": { _id: { subject: "$subject", section: "$section", "pk1": "$pk1", "nm": "$nm" }, count: { "$sum": 1 }, pk: { $first: "$pk" } } }
+                    , { "$project": { _id: 0, nm: "$_id.nm", pk: "$pk", count: "$count" } }
+                ]
+            })
+
+            // console.log(JSON.stringify(catalogDataArr))
+
+            for (let catalogData of catalogDataArr) {
+                count++;
+
+                console.log(JSON.stringify(catalogData))
+                let searchConditionArr = this.getSearchCondition(subject.condition)
+                let taskArr = [], catalogConditionCount = 0;
+                for (let searchCondition of searchConditionArr) {
+
+                    catalogConditionCount++;
+                    let task = Object.assign({}, { pk: catalogData.pk }, searchCondition, {
+                        complete: -1, //  -1 未开始   0进行中  1完成
+                        pageCurrent: 1,
+                        pageTotal: 1,
+                        preProcess: 0,//是否预处理 1已经预处理
+
+                        running: 0,
+                        questionTotal: 0,
+                        section:subject.section,
+                        subject:subject.subject
+                    })
+                    taskArr.push(task)
+                }
+                try{
+                await this.app.mongo.insertMany('Task', { docs: taskArr });
+                }
+                catch(e)
+                {
+
+                }
+                // console.log(JSON.stringify(taskArr))
+                // console.log(`catalog = ${JSON.stringify(catalogData)}  conditionCount = ${catalogConditionCount}  `)
             }
-            await this.app.mongo.insertMany('Task', { docs: taskArr });
         }
+
+        console.log(count)
+
+
+
+        
     }
 
-    getSearchCondition() {
-        let processData = [
-            { des: "题型", keyName: "ct", keyValues: ["1", "2", "9"], keyDes: ["选择题", "填空题", "解答题"], currentIndex: 0 }
-            , { des: "难度", keyName: "dg", keyValues: ["11", "12", "13", "14", "15"], keyDes: ["易", "较易", "中档", "较难", "难"], currentIndex: 0 }
-            , { des: "题类", keyName: "fg", keyValues: ["8", "4", "2", "16"], keyDes: ["常考题", "易错题", "好题", "压轴题"], currentIndex: 0 }
-            , { des: "来源", keyName: "so", keyValues: ["1", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "20"], keyDes: ["中考真题", "自主招生", "中考模拟", "中考复习", "期末试题", "期中试题", "月考试题", "单元测验", "同步练习", "竞赛试题", "假期作业", "好题集"], currentIndex: 0 }
-        ];
+    getSearchCondition(processData) {
+
+        // let processData = [
+        //     { des: "题型", keyName: "ct", keyValues: ["1", "2", "9"], keyDes: ["选择题", "填空题", "解答题"], currentIndex: 0 }
+        //     , { des: "难度", keyName: "dg", keyValues: ["11", "12", "13", "14", "15"], keyDes: ["易", "较易", "中档", "较难", "难"], currentIndex: 0 }
+        //     , { des: "题类", keyName: "fg", keyValues: ["8", "4", "2", "16"], keyDes: ["常考题", "易错题", "好题", "压轴题"], currentIndex: 0 }
+        //     , { des: "来源", keyName: "so", keyValues: ["1", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "20"], keyDes: ["中考真题", "自主招生", "中考模拟", "中考复习", "期末试题", "期中试题", "月考试题", "单元测验", "同步练习", "竞赛试题", "假期作业", "好题集"], currentIndex: 0 }
+        // ];
         let sArr = [];
         let p1 = processData[0];
         let p2 = processData[1];
