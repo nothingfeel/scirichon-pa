@@ -3,10 +3,6 @@ const cheerio = require('cheerio');
 const _ = require("lodash")
 const { ObjectId } = require('bson');
 var UUID = require('uuid');
-/**
- * 1、一个账号对应一个固定的代理IP
- */
-
 
 class QuestionStemNoAccount extends Subscription {
     static get schedule() {
@@ -14,7 +10,7 @@ class QuestionStemNoAccount extends Subscription {
             interval: "0.2s",
             type: 'worker', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 
@@ -201,10 +197,7 @@ class QuestionStemNoAccount extends Subscription {
                 subject: subject
             }];
         }
-
         await this.app.mongo.insertMany("Question", { docs: questions })
-
-
     }
 
     /**
@@ -265,8 +258,8 @@ class QuestionStemNoAccount extends Subscription {
             filter: {
                 "$or": [
                     { successRatio: { "$gte": 66 } },
-                    { count: { "$lt": 50 } }],
-                "running": 0
+                    { count: { "$lt": 50 } }
+                ]
             },
             update: {
                 $set: { running: 1, lastUseTime: new Date() },
