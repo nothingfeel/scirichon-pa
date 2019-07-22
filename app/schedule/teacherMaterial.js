@@ -15,8 +15,6 @@ class TeachingMaterial extends Subscription {
 
     // subscribe 是真正定时任务执行时被运行的函数
     async subscribe() {
-
-
         //获得所有科目数据  K12 共25个
         let subjects = await this.app.mongo.find("Subject", {});
         for (let item of subjects) {

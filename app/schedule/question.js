@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "0.2s",
+            interval: "0.5s",
             type: 'worker', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: true
@@ -33,7 +33,7 @@ class Question extends Subscription {
         await this.getQuestionStem(task)
     }
 
-
+  
     /**
      * 预处理一个任务
      * @param {Object} task 任务对象
@@ -65,8 +65,6 @@ class Question extends Subscription {
                 "host": "www.jyeoo.com",
                 "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
                 "accept-language": "gzip, deflate",
-                //"referer":"http://www.jyeoo.com/math/ques/search?f=0&q=6d7fced9-8023-40e7-81f7-763970f0b989~c999e505-4d5e-49bf-a1ac-dbe3e825c3f2~L2&lbs=&ct=1&dg=11&fg=8&so=1&pd=1",
-                //"cookie": "jy=D6E80E3829994BD3A31B75CE7EB08EEDDBBC0607031F7B19CCE1B0964893D66E44DAACBC51EDD9BE472FD0EE557F3EB79D92E08DD7A76269CDDF1BCB74F3744881FD10342F7F20C6FF8EABF0ACECF79C400A449FCB4D0F10BB244AC083821A28B38F6032D8E7866E0656FDC1AF521CDEA568E0BC00C26D939B19DBD0D5C62E580546DC98FA882C65C32B9EC826C09FFC323D8E14B418BAAFC995F3792E2CE07F9E5941F90945E581C8BC551A152292305A11BA367367281B167539ECB4049B9882AB74865B7298174FD5C7E18E373154CCC4DB29E79F3A91F1ED834DEA395D5D71296564E34BCCC5084043EC05D1DCDA2372A1FBA95F976B27B032F7C8546EE89960994A1C39D7834DD0E517FE26F938B0150B5A0D1677A12F9F55C9DE668F8EB541E83698C8735C593EBFA588A8163538F1D9E30A821E334190820FCEC8C0D9A0BFA39B146676EE7C0BB1F3FCBB6FF9"
             },
             data: requestData,
             method: "GET",

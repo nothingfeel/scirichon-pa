@@ -8,19 +8,14 @@ class Task extends Subscription {
             interval: "300h", // 5 分钟间隔
             type: 'worker', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
     async subscribe() {
-
         let subjectArr = await this.app.mongo.find("Subject", {});
-
-
         let count = 0;
         for (let subject of subjectArr) {
-            //let searchConditionArr = this.getSearchCondition(subject);
-
             let catalogDataArr = await this.app.mongo.aggregate("catalog", {
                 pipeline: [
                     { "$match": { subject: subject.subject, section: subject.section, lastLevel: true } }
@@ -36,11 +31,18 @@ class Task extends Subscription {
 
                 console.log(JSON.stringify(catalogData))
                 let searchConditionArr = this.getSearchCondition(subject.condition)
-                let taskArr = [], catalogConditionCount = 0;
+                let task = {
+                    pk: catalogData.pk,
+                    condition: [],
+                    running: 0,
+                    questionTotal: 0,
+                    section: subject.section,
+                    subject: subject.subject
+
+                };
                 for (let searchCondition of searchConditionArr) {
 
-                    catalogConditionCount++;
-                    let task = Object.assign({}, { pk: catalogData.pk }, searchCondition, {
+                    let condition = Object.assign({}, searchCondition, {
                         complete: -1, //  -1 未开始   0进行中  1完成
                         pageCurrent: 1,
                         pageTotal: 1,
@@ -48,16 +50,14 @@ class Task extends Subscription {
 
                         running: 0,
                         questionTotal: 0,
-                        section:subject.section,
-                        subject:subject.subject
+
                     })
-                    taskArr.push(task)
+                    task.condition.push(condition)
                 }
-                try{
-                await this.app.mongo.insertMany('Task', { docs: taskArr });
+                try {
+                    await this.app.mongo.insertOne('Task', { doc: task });
                 }
-                catch(e)
-                {
+                catch (e) {
 
                 }
                 // console.log(JSON.stringify(taskArr))
@@ -69,7 +69,7 @@ class Task extends Subscription {
 
 
 
-        
+
     }
 
     getSearchCondition(processData) {
