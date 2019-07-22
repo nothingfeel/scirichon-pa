@@ -15,101 +15,181 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "0.5s",
+            interval: "10s",
             type: 'worker', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
     // subscribe 是真正定时任务执行时被运行的函数
     async subscribe() {
         let task = await this.getTask();
-        //task = { "_id": "5d283a6306e3106405111380", "pk": "24ee832a-4fb9-4a7b-9717-74675185918a~589da93d-577e-4315-999d-b28767f565bc~P4", "ct": "2", "dg": "12", "fg": "8", "so": "6", "pageCurrent": 1, "pageTotal": 1, "preProcess": 0, "questionTotal": 0, "complete": -1, "running": 0, "url": "http://www.jyeoo.com/math/ques/search" };
         if (!task) {
             console.log("no task");
             return;
         }
+        console.log(task.pk)
         await this.getQuestionStem(task)
     }
 
-  
+
     /**
      * 预处理一个任务
      * @param {Object} task 任务对象
      */
     async getQuestionStem(task) {
-        let url = task.url.replace('search', 'partialques?f=0');
-        let requestData = {
-            f: 0,
-            q: task.pk, //目录&知识点id
-            fg: task.fg,//题类
-            so: task.so,//来源
-            dg: task.dg,//难度
-            ct: task.ct,//题型
-            pd: 1,
-            lbs: "",
-            pi: task.pageCurrent,//分页
-            r: Math.random()//随机数
-        };
+        let url = task.url.replace('search', 'partialques');
+        let conditionArr = _.filter(task.condition, { preProcess: 0 });
+        conditionArr.length = 200;
+        console.log("condition length = " + conditionArr.length)
 
+        let questionPromiceArr = [];
+        for (let condition of conditionArr) {
+            await this.stay(parseInt(Math.random() * 50) + 50);
+            condition.pk = task.pk;
+            let question = this.sendCondition(condition, url)
+            questionPromiceArr.push(question)
+        }
+        let questionArr = [];
+        await Promise.all(questionPromiceArr)
+            .then((que) => {
+                questionArr = que;
+                // console.log(` questionTotal=${JSON.stringify(que)}`)
+            }).catch((e) => {
+                console.log(`condition err = ${JSON.stringify(e)}  `)
+            });
+
+        let conditionResult = task.condition;
+        let questionResult = [];
+
+        //重新计算Task的condition
+        for (let conditionItem of task.condition) {
+            let question = _.find(questionArr, function (o) {
+                return o.requestData.ct == conditionItem.ct &&
+                    o.requestData.dg == conditionItem.dg &&
+                    o.requestData.fg == conditionItem.fg &&
+                    o.requestData.so == conditionItem.so
+            })
+            delete conditionItem.pk;
+            // console.log("dd   " + JSON.stringify(question))
+            if (question) {
+                let complete = -1;
+                let questionTotal = question.questionArr.questionTotal || 0;
+                let pageTotal = question.questionArr.pageTotal || 1;
+                let pageCurrent = question.questionArr.pageCurrent || 0;
+                if (questionTotal == 0 || pageTotal == 1)
+                    complete = 1
+
+                conditionItem.complete = complete;
+                conditionItem.preProcess = 1;
+                conditionItem.pageCurrent = pageCurrent;
+                conditionItem.pageTotal = pageTotal;
+                conditionItem.questionTotal = questionTotal;
+            }
+        }
+
+        // console.log(JSON.stringify(questionArr))
+
+        for (let item of questionArr) {
+            for (let question of item.questionArr.questions) {
+                let requestData = item.requestData;
+
+                question.id = UUID.v1();
+                question.stemTime = new Date();
+                question.running = 0
+                question.catalogs = [{
+                    q: task.pk, //目录&知识点id
+                    fg: requestData.fg,//题类
+                    so: requestData.so,//来源
+                    dg: requestData.dg,//难度
+                    ct: requestData.ct,//题型
+
+                }];
+                question.section = task.section;
+                question.subject = task.subject;
+                questionResult.push(question)
+            }
+        }
+
+        //set Task.condition
+        let preProcess = 0;
+        let proProcessSuccessCount = _.filter(task.condition, { preProcess: 1 }).length;
+        if (proProcessSuccessCount >= task.condition.length)
+            preProcess = 1;
+        let mc = this.app.mongo.db.collection("Task");
+        await mc.update(
+            { pk: task.pk },
+            { $set: { condition: conditionResult, running: 0, preProcess: preProcess } }
+        )
+        //save Question
+        if (questionResult.length > 0)
+            await this.app.mongo.insertMany("Question", { docs: questionResult })
+        console.log("End..........................")
+    }
+
+    async stay(m) {
+        return new Promise(function (resolve, reject) {
+            setTimeout(() => { resolve() }, m)
+        });
+    }
+
+    async sendCondition(task, url) {
         let proxy = await this.getProxy();
         if (!proxy)
             return null;
 
-        let res = {};
+        let that = this;
+        return new Promise(function (resolve, reject) {
 
-        await this.ctx.curl(url, {
-            headers: {
-                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/137.76 (KHTML, like Gecko) Chrome/50.0.4563.90 Safari/137.76",
-                "host": "www.jyeoo.com",
-                "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "accept-language": "gzip, deflate",
-            },
-            data: requestData,
-            method: "GET",
-            dataType: "text",
-            enableProxy: true,
-            proxy: "http://" + proxy.ip
-        }).then(r => {
-            res = r;
-        }).catch(e => {
-            res = e.res;
+            let requestData = {
+                q: task.pk, //目录&知识点id
+                ct: task.ct || 0,//题型
+                dg: task.dg || 0,//难度
+                fg: task.fg || 0,//题类
+                so: task.so || 0,//来源
+
+                pd: 1,
+                lbs: "",
+                pi: task.pageCurrent || 1,//分页
+                r: Math.random()//随机数
+            };
+            console.log(url)
+            console.log(JSON.stringify(requestData))
+            that.ctx.curl(url, {
+                headers: {
+                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36",
+                    "host": "www.jyeoo.com",
+                    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    //"accept-language": "gzip, deflate",
+                },
+                data: requestData,
+                method: "GET",
+                dataType: "text",
+                enableProxy: true,
+                proxy: "http://" + proxy.ip
+            }).then(r => {
+                // console.log(JSON.stringify(r))
+                let htmlStr = r.data || "";
+                let questionArr = {};
+                try {
+                    questionArr = that.matchQuestionStem(htmlStr)
+                } catch (e) {
+                    e.mmm = "解析无效";
+                    e.requestData = requestData;
+                    reject(e);
+                }
+                let resultData = { questionArr: questionArr, requestData: requestData };
+                resolve(resultData)
+            }, e => {
+                e.requestData = requestData
+                reject(e)
+            });
+
         });
-        console.log("预处理 请求url返回。 状态码：" + res.status)
-        this.app.logger.debug("task = " + JSON.stringify(task))
-        //this.app.logger.debug("proxy =   " + JSON.stringify(proxy))
-        let htmlStr = res.data || "";
-        this.app.logger.debug("HtmlStr " + htmlStr)
-        if (res.status != 200 || htmlStr.length < 10) {
-            this.app.logger.debug("请求无效");
-            console.log("htmlStr " + htmlStr)
-            await this.updateProxy(proxy, false);
-            await this.getQuestionStem(task);
-            return;
-        }
 
-       
-
-        let questionArr = {};
-        try {
-            questionArr = this.matchQuestionStem(htmlStr)
-        } catch (e) {
-            this.app.logger.debug("解析无效");
-            await this.updateProxy(proxy, false);
-            await this.getQuestionStem(task);
-            return;
-        }
-
-        this.app.logger.debug("pageTotal =  " + questionArr.pageTotal + ",  questionTotal=" + questionArr.questionTotal)
-
-        
-        await this.saveQuestionStem(task, questionArr.questions)
-        await this.updateProxy(proxy, true);
-        await this.updateTask(task, task.pageCurrent, questionArr.pageTotal, questionArr.questionTotal)
 
     }
-
 
     /**
      * 解析html
@@ -177,21 +257,19 @@ class Question extends Subscription {
         return { questions: resultArr, pageCurrent: pageCurrent, pageTotal: pageTotal, questionTotal: questionTotal };
     }
 
-    
+
     /**
      * 保存试题
      * @param {Object} task 任务对象
      * @param {Array} questions 试题数组
      */
-    async saveQuestionStem(task, questions) {
+    async saveQuestionStem(questions) {
 
-        if(questions.length <= 0)
+        if (questions.length <= 0)
             return;
 
-        if (task.questionTotal > questions.length) {
-            this.app.logger.debug(`no no no task.questionTotal=${task.questionTotal}  questions.length=${questions.length}`)
-        }
-        let { section, subject } = await this.app.mongo.findOne("TeachingMeterial", { query: { bk: task.pk.split("~")[0] } })
+
+        //let { section, subject } = await this.app.mongo.findOne("TeachingMeterial", { query: { bk: task.pk.split("~")[0] } })
         for (let question of questions) {
             question.id = UUID.v1();
             question.catalogs = [{
@@ -205,7 +283,6 @@ class Question extends Subscription {
             }];
         }
 
-        await this.app.mongo.insertMany("Question", { docs: questions })
     }
 
 
@@ -218,7 +295,7 @@ class Question extends Subscription {
         let taskRet = await this.app.mongo.findOneAndUpdate("Task", {
             filter: { preProcess: 0, running: 0 },
             update: { $set: { running: 1 } },
-            options: { sort: { _id: 1 } }
+            options: { sort: { pk: 1 } }
         });
 
         let task = null;
@@ -260,20 +337,18 @@ class Question extends Subscription {
      * 获得一个代理ip对象
      */
     async getProxy() {
-
         let proxyRet = await this.app.mongo.findOneAndUpdate("ProxyIP", {
             filter: {
                 "$or": [
                     { successRatio: { "$gte": 66 } },
-                    { count: { "$lt": 50 } }],
-                "running": 0
+                    { count: { "$lt": 50 } }]
             },
             update: {
                 $set: { running: 1, lastUseTime: new Date() },
                 $inc: { count: 1 },
 
             },
-            options: { sort: { successRatio: -1 } }
+            options: { sort: { lastUseTime: -1 } }
         });
         if (!proxyRet.lastErrorObject.updatedExisting)
             return null;
