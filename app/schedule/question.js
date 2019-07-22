@@ -41,7 +41,8 @@ class Question extends Subscription {
     async getQuestionStem(task) {
         let url = task.url.replace('search', 'partialques');
         let conditionArr = _.filter(task.condition, { preProcess: 0 });
-        conditionArr.length = 200;
+        if (conditionArr > 200)
+            conditionArr.length = 200;
         console.log("condition length = " + conditionArr.length)
 
         let questionPromiceArr = [];
