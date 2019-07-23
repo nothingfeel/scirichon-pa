@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "10s",
+            interval: "15s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -173,7 +173,7 @@ class Question extends Subscription {
 
         let questionPromiceArr = [];
         for (let condition of conditionArr) {
-            await this.stay(parseInt(Math.random() * 10) + 10);
+            await this.stay(parseInt(Math.random() * 100) + 50);
             condition.pk = task.pk;
             let question = this.sendConditionItem(condition, url)
             questionPromiceArr.push(question)
