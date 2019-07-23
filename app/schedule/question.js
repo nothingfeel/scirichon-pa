@@ -230,6 +230,7 @@ class Question extends Subscription {
                 proxy: "http://" + proxy.ip
             }).then(r => {
                 let htmlStr = r.data || "";
+                that.app.logger.info(`requestData = ${JSON.stringify(requestData)}   htmlStr=${htmlStr} `)
                 let questionArr = {};
                 try {
                     questionArr = that.matchQuestionStem(htmlStr)
