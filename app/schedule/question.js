@@ -155,7 +155,7 @@ class Question extends Subscription {
                 pi: task.pageCurrent || 1,//分页
                 r: Math.random()//随机数
             };
-            this.app.logger.info(JSON.stringify(requestData))
+            that.app.logger.info(JSON.stringify(requestData))
             that.ctx.curl(url, {
                 headers: {
                     "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36",
