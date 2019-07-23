@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "5s",
+            interval: "10s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -173,7 +173,7 @@ class Question extends Subscription {
 
         let questionPromiceArr = [];
         for (let condition of conditionArr) {
-            await this.stay(parseInt(Math.random() * 50) + 50);
+            await this.stay(parseInt(Math.random() * 10) + 10);
             condition.pk = task.pk;
             let question = this.sendConditionItem(condition, url)
             questionPromiceArr.push(question)
@@ -352,7 +352,7 @@ class Question extends Subscription {
     async getTask() {
         //获得未预处理且处理不在处理中的任务。
         let taskRet = await this.app.mongo.findOneAndUpdate("Task", {
-            filter: { preProcess: 0, running: 0 },
+            filter: {section:"初中",subject:"物理" , preProcess: 0, running: 0 },
             update: { $set: { running: 1 } },
             options: { sort: { pk: 1 } }
         });
