@@ -41,8 +41,8 @@ class Question extends Subscription {
     async getQuestionStem(task) {
 
         task = await this.analyzeQuestionCondition(task);
-       // console.log("analyze  result  " + JSON.stringify(task))
-        
+        // console.log("analyze  result  " + JSON.stringify(task))
+
         let questionArr = await this.getResponsDataByTask(task);
         let conditionResult = task.condition;
         let questionResult = [];
@@ -104,7 +104,7 @@ class Question extends Subscription {
         let mc = this.app.mongo.db.collection("Task");
         await mc.update(
             { pk: task.pk },
-            { $set: { condition: conditionResult, running: 0, preProcess: preProcess,analyzeQC:1,t:new Date() } }
+            { $set: { condition: conditionResult, running: 0, preProcess: preProcess, analyzeQC: 1, t: new Date() } }
         )
         //save Question
         if (questionResult.length > 0)
@@ -218,7 +218,7 @@ class Question extends Subscription {
             that.app.logger.info(JSON.stringify(requestData))
             that.ctx.curl(url, {
                 headers: {
-                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36",
+                    "user-agent": that.getUserAgent(),
                     "host": "www.jyeoo.com",
                     "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
                     //"accept-language": "gzip, deflate",
@@ -344,6 +344,20 @@ class Question extends Subscription {
 
     }
 
+    getUserAgent() {
+        let user_agent_list = ['Mozilla/5.0 (Windows NT 6.2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1464.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.16 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.3319.102 Safari/537.36',
+            'Mozilla/5.0 (X11; CrOS i686 3912.101.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.116 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:17.0) Gecko/20100101 Firefox/17.0.6',
+            'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1468.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36',
+            'Mozilla/5.0 (X11; CrOS i686 3912.101.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.116 Safari/537.36']
+
+        return user_agent_list[parseInt(Math.random() * (user_agent_list.length - 1))]
+    }
 
 
     /**
@@ -352,7 +366,7 @@ class Question extends Subscription {
     async getTask() {
         //获得未预处理且处理不在处理中的任务。
         let taskRet = await this.app.mongo.findOneAndUpdate("Task", {
-            filter: {section:"初中",subject:"物理" , preProcess: 0, running: 0 },
+            filter: { section: "初中", subject: "物理", preProcess: 0, running: 0 },
             update: { $set: { running: 1 } },
             options: { sort: { pk: 1 } }
         });
