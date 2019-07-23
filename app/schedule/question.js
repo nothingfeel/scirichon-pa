@@ -15,8 +15,8 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "10s",
-            type: 'worker', // 指定所有的 worker 都需要执行
+            interval: "2s",
+            type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
         };
@@ -26,10 +26,10 @@ class Question extends Subscription {
     async subscribe() {
         let task = await this.getTask();
         if (!task) {
-            console.log("no task");
+            this.app.logger.info("no task " + new Date());
             return;
         }
-        console.log(task.pk)
+        this.app.logger.info(task.pk)
         await this.getQuestionStem(task)
     }
 
