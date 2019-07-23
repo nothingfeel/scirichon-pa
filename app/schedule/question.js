@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "2s",
+            interval: "15s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -155,8 +155,7 @@ class Question extends Subscription {
                 pi: task.pageCurrent || 1,//分页
                 r: Math.random()//随机数
             };
-            console.log(url)
-            console.log(JSON.stringify(requestData))
+            this.app.logger.info(JSON.stringify(requestData))
             that.ctx.curl(url, {
                 headers: {
                     "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36",
@@ -254,7 +253,7 @@ class Question extends Subscription {
             questionTotal = parseInt(questionTotalMatch[1]);
         }
 
-        console.log("本调解的总页数为： " + pageTotal + "  总题数为：" + questionTotal)
+        this.app.logger.info("本调解的总页数为： " + pageTotal + "  总题数为：" + questionTotal)
         return { questions: resultArr, pageCurrent: pageCurrent, pageTotal: pageTotal, questionTotal: questionTotal };
     }
 
