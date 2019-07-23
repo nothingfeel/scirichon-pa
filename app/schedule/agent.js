@@ -36,6 +36,7 @@ class Agent extends Subscription {
         let dayListHtml = await this.MatchDayList(htmlStr);
         let dayList = await this.GetDayList(dayListHtml, headers);
         await this.app.mongo.insertMany("ProxyIP", { docs: dayList });
+        console.log("ddddd")
     }
 
     /**

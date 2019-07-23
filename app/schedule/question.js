@@ -18,7 +18,7 @@ class Question extends Subscription {
             interval: "15s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 
@@ -182,7 +182,7 @@ class Question extends Subscription {
         await Promise.all(questionPromiceArr)
             .then((que) => {
                 questionArr = que;
-                // console.log(` questionTotal=${JSON.stringify(que)}`)
+                console.log(` questionTotal=${JSON.stringify(que)}`)
             }).catch((e) => {
                 console.log(`condition err = ${JSON.stringify(e)}  `)
             });
@@ -215,6 +215,8 @@ class Question extends Subscription {
                 pi: task.pageCurrent || 1,//分页
                 r: Math.random()//随机数
             };
+
+
             that.app.logger.info(JSON.stringify(requestData))
             that.ctx.curl(url, {
                 headers: {
@@ -230,21 +232,29 @@ class Question extends Subscription {
                 proxy: "http://" + proxy.ip
             }).then(r => {
                 let htmlStr = r.data || "";
-                that.app.logger.info(`requestData = ${JSON.stringify(requestData)}   htmlStr=${htmlStr} `)
+                that.app.logger.info(`requestData = ${JSON.stringify(requestData)} html=${htmlStr}  `)
                 let questionArr = {};
                 try {
                     questionArr = that.matchQuestionStem(htmlStr)
+
                 } catch (e) {
                     e.mmm = "解析无效";
                     e.requestData = requestData;
                     reject(e);
                 }
-                let resultData = { questionArr: questionArr, requestData: requestData };
-                resolve(resultData)
-            }, e => {
-                e.requestData = requestData
-                reject(e)
-            });
+                if (questionArr == null) {
+                    reject("不是没有题，可能是代理问题或者被jyeoo检测到");
+                }
+                else {
+                    let resultData = { questionArr: questionArr, requestData: requestData };
+                    resolve(resultData)
+                }
+            })
+                .catch(e => {
+                    console.log("ppp catch")
+                    e.requestData = requestData
+                    reject(e)
+                });
 
         });
 
@@ -257,9 +267,14 @@ class Question extends Subscription {
      * @returns {Object} { questions, pageCurrentIndex, pageTotal }
      */
     matchQuestionStem(htmlStr) {
+        
         let $ = cheerio.load(htmlStr, { decodeEntities: false });
 
         let questions = Array.from($(".ques-list li"));
+
+        if (questions.length < 1 && !/.*当前条件下没有试题.*/.test(htmlStr))
+            return null;
+
         let resultArr = [];
         for (let item of questions) {//题
             let questionDataItem = {};
