@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "15s",
+            interval: "5s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -39,28 +39,11 @@ class Question extends Subscription {
      * @param {Object} task 任务对象
      */
     async getQuestionStem(task) {
-        let url = task.url.replace('search', 'partialques');
-        let conditionArr = _.filter(task.condition, { preProcess: 0 });
-        if (conditionArr.length > 200)
-            conditionArr.length = 200;
-        console.log("condition length = " + conditionArr.length)
 
-        let questionPromiceArr = [];
-        for (let condition of conditionArr) {
-            await this.stay(parseInt(Math.random() * 50) + 50);
-            condition.pk = task.pk;
-            let question = this.sendCondition(condition, url)
-            questionPromiceArr.push(question)
-        }
-        let questionArr = [];
-        await Promise.all(questionPromiceArr)
-            .then((que) => {
-                questionArr = que;
-                // console.log(` questionTotal=${JSON.stringify(que)}`)
-            }).catch((e) => {
-                console.log(`condition err = ${JSON.stringify(e)}  `)
-            });
-
+        task = await this.analyzeQuestionCondition(task);
+       // console.log("analyze  result  " + JSON.stringify(task))
+        
+        let questionArr = await this.getResponsDataByTask(task);
         let conditionResult = task.condition;
         let questionResult = [];
 
@@ -121,12 +104,57 @@ class Question extends Subscription {
         let mc = this.app.mongo.db.collection("Task");
         await mc.update(
             { pk: task.pk },
-            { $set: { condition: conditionResult, running: 0, preProcess: preProcess } }
+            { $set: { condition: conditionResult, running: 0, preProcess: preProcess,analyzeQC:1 } }
         )
         //save Question
         if (questionResult.length > 0)
             await this.app.mongo.insertMany("Question", { docs: questionResult })
         console.log("End..........................")
+    }
+
+    /**
+     * 分析空的任务
+     * @param {Object} task 任务对象
+     */
+    async analyzeQuestionCondition(task) {
+
+        if (task.analyzeQC && task.analyzeQC == 1)
+            return task;
+
+        let condition = _.uniqWith(
+            _.map(task.condition, function (item) { return { ct: item.ct, dg: item.dg } }),
+            _.isEqual
+        );
+
+        let taskTemp = _.cloneDeep(task);
+        taskTemp.condition = _.map(condition, function (item) {
+            return {
+                "ct": item.ct,
+                "dg": item.dg,
+                "fg": "0",
+                "so": "0",
+                "complete": 0,
+                "pageCurrent": 1,
+                "pageTotal": 1,
+                "preProcess": 0,
+                "running": 0,
+                "questionTotal": 0
+            }
+        });
+        let questionArr = await this.getResponsDataByTask(taskTemp);
+
+        for (let item of questionArr) {
+            if (item.questionArr.questionTotal >= 1)
+                continue;
+
+            for (let condition of task.condition) {
+                if (item.requestData.ct == condition.ct && item.requestData.dg == condition.dg) {
+                    condition.complete = 1;
+                    condition.preProcess = 1;
+                }
+            }
+        }
+        return task;
     }
 
     async stay(m) {
@@ -135,7 +163,39 @@ class Question extends Subscription {
         });
     }
 
-    async sendCondition(task, url) {
+    async getResponsDataByTask(task) {
+        let url = task.url.replace('search', 'partialques');
+
+        let conditionArr = _.filter(task.condition, { preProcess: 0 });
+        if (conditionArr.length > 200)
+            conditionArr.length = 200;
+        console.log("condition length = " + conditionArr.length)
+
+        let questionPromiceArr = [];
+        for (let condition of conditionArr) {
+            await this.stay(parseInt(Math.random() * 50) + 50);
+            condition.pk = task.pk;
+            let question = this.sendConditionItem(condition, url)
+            questionPromiceArr.push(question)
+        }
+        let questionArr = [];
+        await Promise.all(questionPromiceArr)
+            .then((que) => {
+                questionArr = que;
+                // console.log(` questionTotal=${JSON.stringify(que)}`)
+            }).catch((e) => {
+                console.log(`condition err = ${JSON.stringify(e)}  `)
+            });
+
+        return questionArr;
+    }
+
+    /**
+     * 发起一个条件的http请求
+     * @param {Object} task 任务对象
+     * @param {string} url url
+     */
+    async sendConditionItem(task, url) {
         let proxy = await this.getProxy();
         if (!proxy)
             return null;
@@ -169,7 +229,6 @@ class Question extends Subscription {
                 enableProxy: true,
                 proxy: "http://" + proxy.ip
             }).then(r => {
-                // console.log(JSON.stringify(r))
                 let htmlStr = r.data || "";
                 let questionArr = {};
                 try {
