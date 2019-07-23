@@ -104,7 +104,7 @@ class Question extends Subscription {
         let mc = this.app.mongo.db.collection("Task");
         await mc.update(
             { pk: task.pk },
-            { $set: { condition: conditionResult, running: 0, preProcess: preProcess,analyzeQC:1 } }
+            { $set: { condition: conditionResult, running: 0, preProcess: preProcess,analyzeQC:1,t:new Date() } }
         )
         //save Question
         if (questionResult.length > 0)
