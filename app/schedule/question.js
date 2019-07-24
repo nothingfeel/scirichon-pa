@@ -236,8 +236,8 @@ class Question extends Subscription {
                 data: requestData,
                 method: "GET",
                 dataType: "text",
-                enableProxy: true,
-                proxy: "http://" + proxy.ip
+                enableProxy: proxy ? true : false,
+                proxy: "http://" + (proxy ? proxy.ip : "")
             }).then(r => {
                 let htmlStr = r.data || "";
                 that.app.logger.info(`requestData = ${JSON.stringify(requestData)} html=${htmlStr}  `)
@@ -465,6 +465,9 @@ class Question extends Subscription {
      * @param {bool} success 是否请求成功
      */
     async updateProxy(proxy, status) {
+
+        if (!proxy)
+            return;
 
         let successCount = proxy.successCount;
         let count = proxy.count;
