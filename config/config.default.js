@@ -4,7 +4,7 @@ exports.logger = {
 };
 exports.mongo = {
     client: {
-        host: "localhost",
+        host: "localhost",//108.160.131.16
         port: "27017",
         name: "spider"
     }
@@ -21,7 +21,7 @@ exports.appConfig = {
         host: "http://ip.zdaye.com",
         mainUrl: "http://ip.zdaye.com/dayProxy/2019/7/2.html"
     },
-    jyeoo:{
-        
+    jyeoo: {
+
     }
 }

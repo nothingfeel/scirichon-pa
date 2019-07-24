@@ -97,7 +97,9 @@ class Agent extends Subscription {
                 let rItem = mItem.match(regItem);
                 if (rItem && rItem.length > 0) {
                     let proxyData = { ip: rItem[1], method: rItem[2], proxyType: rItem[3], address: rItem[4] };
-                    let data = Object.assign({}, proxyData, { dayId: item.dayId, title: item.title, successCount: 0, count: 1, successRatio: 100, lastUseTime: new Date(), runing: 0 })
+                    let data = Object.assign({}, proxyData, 
+                        { dayId: item.dayId, title: item.title, successCount: 0,
+                             count: 1, successRatio: 100, lastUseTime: new Date(), running: 0 })
                     result.push(data);
                 }
             });

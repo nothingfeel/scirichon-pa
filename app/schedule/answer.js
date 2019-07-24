@@ -71,7 +71,6 @@ class Answer extends Subscription {
                 "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.90 Safari/537.36",
                 "host": "www.jyeoo.com",
                 "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "accept-language": "gzip, deflate",
                 "cookie": cookieStr
             },
             data: requestData,

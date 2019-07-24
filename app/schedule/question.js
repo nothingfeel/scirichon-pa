@@ -15,10 +15,10 @@ var UUID = require('uuid');
 class Question extends Subscription {
     static get schedule() {
         return {
-            interval: "15s",
+            interval: "10s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
@@ -50,14 +50,13 @@ class Question extends Subscription {
         //重新计算Task的condition
         for (let conditionItem of task.condition) {
             let question = _.find(questionArr, function (o) {
-                return o.requestData.ct == conditionItem.ct &&
+                return o && o.requestData && o.requestData.ct == conditionItem.ct &&
                     o.requestData.dg == conditionItem.dg &&
                     o.requestData.fg == conditionItem.fg &&
                     o.requestData.so == conditionItem.so
             })
             delete conditionItem.pk;
-            // console.log("dd   " + JSON.stringify(question))
-            if (question) {
+            if (question && question.err == null) {
                 let complete = -1;
                 let questionTotal = question.questionArr.questionTotal || 0;
                 let pageTotal = question.questionArr.pageTotal || 1;
@@ -73,9 +72,14 @@ class Question extends Subscription {
             }
         }
 
-        // console.log(JSON.stringify(questionArr))
+        // console.log("man questionArr = " + JSON.stringify(questionArr))
 
         for (let item of questionArr) {
+            // console.log("ssssssssssss " + JSON.stringify(item))
+            if (item == null || item.questionArr == null || item.questionArr.length < 1 || item.questionArr.questions.length < 1) {
+                await this.updateProxy(item.proxy, false);
+                continue;
+            }
             for (let question of item.questionArr.questions) {
                 let requestData = item.requestData;
 
@@ -92,7 +96,8 @@ class Question extends Subscription {
                 }];
                 question.section = task.section;
                 question.subject = task.subject;
-                questionResult.push(question)
+                questionResult.push(question);
+                await this.updateProxy(item.proxy, true);
             }
         }
 
@@ -179,12 +184,13 @@ class Question extends Subscription {
             questionPromiceArr.push(question)
         }
         let questionArr = [];
+        let that = this;
         await Promise.all(questionPromiceArr)
             .then((que) => {
                 questionArr = que;
-                console.log(` questionTotal=${JSON.stringify(que)}`)
+                that.app.logger.info(` questionTotal=${JSON.stringify(que)}`)
             }).catch((e) => {
-                console.log(`condition err = ${JSON.stringify(e)}  `)
+                that.app.logger.info(`condition err = ${JSON.stringify(e)}  `)
             });
 
         return questionArr;
@@ -197,12 +203,16 @@ class Question extends Subscription {
      */
     async sendConditionItem(task, url) {
         let proxy = await this.getProxy();
-        if (!proxy)
-            return null;
+        if (!proxy) {
+            let mc = this.app.mongo.db.collection("ProxyIP");
+            await mc.update({ running: 1 }, {
+                $set: { running: 0 },
+            });
+            proxy = await this.getProxy();
+        }
 
         let that = this;
         return new Promise(function (resolve, reject) {
-
             let requestData = {
                 q: task.pk, //目录&知识点id
                 ct: task.ct || 0,//题型
@@ -215,8 +225,6 @@ class Question extends Subscription {
                 pi: task.pageCurrent || 1,//分页
                 r: Math.random()//随机数
             };
-
-
             that.app.logger.info(JSON.stringify(requestData))
             that.ctx.curl(url, {
                 headers: {
@@ -233,27 +241,32 @@ class Question extends Subscription {
             }).then(r => {
                 let htmlStr = r.data || "";
                 that.app.logger.info(`requestData = ${JSON.stringify(requestData)} html=${htmlStr}  `)
-                let questionArr = {};
+                let resultData = { err: null, questionArr: [], requestData: requestData, proxy: proxy };
+                let questionArr = null;
                 try {
-                    questionArr = that.matchQuestionStem(htmlStr)
-
+                    if (r.status != 200 || htmlStr.length < 10) {
+                        this.app.logger.debug("请求无效: " + JSON.stringify(r));
+                        resultData.err = { msg: "请求无效", code: 1 }
+                    }
+                    else {
+                        questionArr = that.matchQuestionStem(htmlStr)
+                    }
                 } catch (e) {
-                    e.mmm = "解析无效";
-                    e.requestData = requestData;
-                    reject(e);
+                    resultData.err = { msg: "解析无效", code: 2 }
                 }
-                if (questionArr == null) {
-                    reject("不是没有题，可能是代理问题或者被jyeoo检测到");
-                }
-                else {
-                    let resultData = { questionArr: questionArr, requestData: requestData };
-                    resolve(resultData)
-                }
+                if (questionArr == null)
+                    resultData.err = { msg: "不是没有题，可能是代理问题或者被jyeoo检测到", code: 3 }
+                else
+                    resultData.questionArr = questionArr;
+
+                resolve(resultData)
             })
                 .catch(e => {
-                    console.log("ppp catch")
                     e.requestData = requestData
-                    reject(e)
+                    e.proxy = proxy;
+                    e.err = true;
+                    e.questionArr = []
+                    resolve(e)
                 });
 
         });
@@ -267,7 +280,7 @@ class Question extends Subscription {
      * @returns {Object} { questions, pageCurrentIndex, pageTotal }
      */
     matchQuestionStem(htmlStr) {
-        
+
         let $ = cheerio.load(htmlStr, { decodeEntities: false });
 
         let questions = Array.from($(".ques-list li"));
@@ -382,7 +395,8 @@ class Question extends Subscription {
     async getTask() {
         //获得未预处理且处理不在处理中的任务。
         let taskRet = await this.app.mongo.findOneAndUpdate("Task", {
-            filter: { section: "初中", subject: "物理", preProcess: 0, running: 0 },
+            filter: { preProcess: 0, running: 0 },
+            // filter: { section: "初中", subject: "物理", preProcess: 0, running: 0 },
             update: { $set: { running: 1 } },
             options: { sort: { pk: 1 } }
         });
@@ -431,13 +445,14 @@ class Question extends Subscription {
                 "$or": [
                     { successRatio: { "$gte": 66 } },
                     { count: { "$lt": 50 } }]
+                , running: 0
             },
             update: {
                 $set: { running: 1, lastUseTime: new Date() },
                 $inc: { count: 1 },
 
             },
-            options: { sort: { lastUseTime: -1 } }
+            options: { sort: { lastUseTime: 1 } }
         });
         if (!proxyRet.lastErrorObject.updatedExisting)
             return null;
@@ -466,7 +481,7 @@ class Question extends Subscription {
 
         //每1000次 重新评估其代理ip健康情况
         if (count > 1000)
-            await mc.update({ _id: new ObjectId(proxy._id) }, { $set: { successCount: 0, failCount: 0 } });
+            await mc.update({ _id: new ObjectId(proxy._id) }, { $set: { successCount: 0, count: 1 } });
     }
 }
 module.exports = Question;
