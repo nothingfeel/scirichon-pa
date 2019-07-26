@@ -15,7 +15,7 @@ var UUID = require('uuid');
 class QuestionStemNoAccount extends Subscription {
     static get schedule() {
         return {
-            interval: "10s",
+            interval: "5s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -56,6 +56,7 @@ class QuestionStemNoAccount extends Subscription {
                 let questionTotal = question.questionArr.questionTotal || 0;
                 let pageTotal = question.questionArr.pageTotal || 1;
                 let pageCurrent = question.questionArr.pageCurrent || 0;
+                pageCurrent++;
                 if (pageTotal == pageCurrent)
                     complete = 1
 
@@ -128,8 +129,7 @@ class QuestionStemNoAccount extends Subscription {
         for (let condition of conditionArr) {
             await this.stay(parseInt(Math.random() * 50) + 50);
             condition.pk = task.pk;
-            condition.pageCurrent++;
-            let question = this.sendConditionItem(condition, url)
+            let question = this.sendConditionItem(condition.pageCurrent + 1, url)
             questionPromiceArr.push(question)
         }
         let questionArr = [];
@@ -356,7 +356,7 @@ class QuestionStemNoAccount extends Subscription {
         let subjectData = await this.app.mongo.findOne("Subject", { query: { subject: subject, section: section } })
         return Object.assign(task, { url: subjectData.url });
     }
-   
+
     /**
      * 获得一个代理ip对象
      */
