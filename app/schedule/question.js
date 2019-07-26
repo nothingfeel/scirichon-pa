@@ -18,7 +18,7 @@ class Question extends Subscription {
             interval: "20s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 

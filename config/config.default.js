@@ -19,7 +19,7 @@ exports.appConfig = {
     agent: {
         cron: "20s",
         host: "http://ip.zdaye.com",
-        mainUrl: "http://ip.zdaye.com/dayProxy/2019/7/2.html"
+        mainUrl: "http://ip.zdaye.com/dayProxy/2019/7/1.html"
     },
     jyeoo: {
 
