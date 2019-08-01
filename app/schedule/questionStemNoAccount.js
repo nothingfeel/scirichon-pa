@@ -18,7 +18,7 @@ class QuestionStemNoAccount extends Subscription {
             interval: "5s",
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 

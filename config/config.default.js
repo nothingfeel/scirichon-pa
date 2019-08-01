@@ -4,9 +4,9 @@ exports.logger = {
 };
 exports.mongo = {
     client: {
-        host: "localhost",//108.160.131.16
+        host: "localhost",
         port: "27017",
-        name: "spider"
+        name: "TsingDa_Question"
     }
     // client: {
     //     host: "127.0.0.1",
@@ -23,5 +23,6 @@ exports.appConfig = {
     },
     jyeoo: {
 
-    }
+    },
+    apiHost:"http://192.168.2.222:3006"
 }
