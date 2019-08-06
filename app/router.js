@@ -9,10 +9,11 @@ module.exports = app => {
     router.get('/catalog/add', controller.catalog.Add);
     router.get('/catalog/delete', controller.catalog.Delete);
 
-    /*
-    router.get('/question/add', controller.TeachingMaterial.Add);
-    router.get('/question/delete', controller.TeachingMaterial.Delete);
- */
+    
+    router.get('/question/add', controller.question.Add);
+    router.get('/question/delete', controller.question.Delete);
+    router.get('/questionset/delete', controller.question.DeleteQuestionSet);
+    router.get('/answer/delete', controller.question.DeleteAnswer);
 };
 
 

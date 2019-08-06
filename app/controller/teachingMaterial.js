@@ -4,11 +4,17 @@ const _ = require('lodash')
 
 class TeachingMaterial extends Controller {
     async Add() {
-        let result = await this.app.mongo.db.collection("TeachingMeterial").find().toArray();
+        let result = await this.app.mongo.db.collection("TeachingMaterial").find().sort({ _id: -1 }).toArray();
 
         let recordCount = result.length;
-        let successCount = 0
+        let successCount = 0;
+        let ranking = 1;
+       
+
         for (let item of result) {
+            let name = item.nm;
+            if (/修/.test(name))
+                name = item.section + name;
             let obj =
             {
                 "data": {
@@ -16,15 +22,16 @@ class TeachingMaterial extends Controller {
                     fields:
                     {
                         "subject": item.subject,
-                        "grade": item.nm,
+                        "grade": name,
                         "edition": item.pnm,
-                        "ranking": "1",
+                        "ranking": ranking.toString(),
                         "uuid": item.bk
                     }
                 }
             }
             const res = await this.service.common.requestUri("/api/teaching_material", "POST", obj)
 
+            ranking++;
             if (res.data.status == "ok")
                 successCount++;
         }

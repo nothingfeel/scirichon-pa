@@ -42,9 +42,10 @@ class Catalog extends Controller {
 
                 console.log(`total = ${result.length} current = ${sort}  time = ${parseInt(new Date().getTime() - beginDate) / 1000}s`)
                 let data = { "data": { "category": "Catalog", fields: arr } }
-                const res = await this.service.common.requestUri("/batch/api/catalog", "POST", data)
+                let res = null;
+                res = await this.service.common.requestUri("/batch/api/catalog", "POST", data)
                 arr = [];
-                if (res.data.status == "ok")
+                if (res && res.data.status == "ok")
                     successCount += res.data.data.length;
             }
         }
@@ -53,18 +54,25 @@ class Catalog extends Controller {
     }
 
     async Delete() {
-        const res = await this.service.common.requestUri("/api/teaching_material", "GET", {})
-        let arr = _.map(res.data.data, function (item) {
+        let searchData = {
+            "category": "Catalog",
+            "body": { "query": { "bool": {} } }, 
+            "source": ["uuid"],
+            "page": 1, "per_page": 5
+        }
+
+        const res = await this.service.common.requestUri("/api/searchByEql", "POST", searchData)
+        let arr = _.map(res.data.data.results, function (item) {
             return item.uuid;
         });
         let Objs = {
             "data": {
-                "category": "TeachingMaterial",
+                "category": "Catalog",
                 uuids: arr
 
             }
         };
-        const delRes = await this.service.common.requestUri("/batch/api/teaching_material", "DELETE", Objs)
+        const delRes = await this.service.common.requestUri("/batch/api/catalog", "DELETE", Objs)
         this.ctx.body = delRes
     }
 }

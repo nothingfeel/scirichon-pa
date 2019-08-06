@@ -24,5 +24,7 @@ exports.appConfig = {
     jyeoo: {
 
     },
-    apiHost:"http://192.168.2.222:3006"
+    apiHost:"http://192.168.2.222/echo_api",
+    deleteBatchCount:10
+
 }
