@@ -8,7 +8,7 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "60s", // 5 分钟间隔
+            interval: "10s", // 5 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -25,9 +25,11 @@ class AsyncQuestion extends Subscription {
         for (let task of tasks) {
             index++;
             processTasks.push(task);
+            let sDate = new Date().getTime();
             if (index % batchCount == 0 || index + 1 > tasks.length) {
+                
                 await this.addQuestions(processTasks);
-
+                console.log("echo insert Time = "+parseInt(new Date().getTime() - sDate)/1000 + "s")
                 processTasks = [];//清空一批任务
             }
         }
@@ -110,7 +112,7 @@ class AsyncQuestion extends Subscription {
             else
                 options = [];
 
-            if (answer.length < 1)//主观题 没有标准答案 就忽略
+            if (item.ObjectiveFlag == 1 && answer.length < 1)//主观题 没有标准答案 就忽略
                 continue;
 
             let obj = {
