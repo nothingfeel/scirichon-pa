@@ -9,7 +9,7 @@ class TeachingMaterial extends Controller {
         let recordCount = result.length;
         let successCount = 0;
         let ranking = 1;
-       
+
 
         for (let item of result) {
             let name = item.nm;
@@ -22,13 +22,14 @@ class TeachingMaterial extends Controller {
                     fields:
                     {
                         "subject": item.subject,
+                        "section": item.section,
                         "grade": name,
                         "edition": item.pnm,
                         "ranking": ranking.toString(),
                         "uuid": item.bk
                     }
                 }
-            }
+            }                                                      
             const res = await this.service.common.requestUri("/api/teaching_material", "POST", obj)
 
             ranking++;
@@ -45,6 +46,7 @@ class TeachingMaterial extends Controller {
         let arr = _.map(res.data.data, function (item) {
             return item.uuid;
         });
+        arr.length = 10;
         let Objs = {
             "data": {
                 "category": "TeachingMaterial",

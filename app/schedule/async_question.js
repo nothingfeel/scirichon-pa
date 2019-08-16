@@ -11,7 +11,7 @@ class AsyncQuestion extends Subscription {
             interval: "10s", // 5 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 
@@ -142,6 +142,29 @@ class AsyncQuestion extends Subscription {
         await this.saveQuestion(questions);
         await this.updateMongoQuestion(questions);
         return questions;
+    }
+
+    /**
+     * 获取目录的父级对象
+     * @param {Array} catalogs 目录集合
+     */
+    async getNewCatalog(catalogs){
+
+        
+        for(let catalog of catalogs)
+        {
+            
+        }
+
+
+    }
+
+
+    async getCatalogParents(catalog,level){
+        for(i=level;i>0;i--)
+        {
+            p_nm2,p_pk2
+        }
     }
 
     /**

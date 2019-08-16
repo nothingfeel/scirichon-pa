@@ -9,6 +9,9 @@ module.exports = app => {
     router.get('/catalog/add', controller.catalog.Add);
     router.get('/catalog/delete', controller.catalog.Delete);
 
+    router.get('/point/add', controller.point.Add);
+   // router.get('/point/delete', controller.point.Delete);
+
     
     router.get('/question/add', controller.question.Add);
     router.get('/question/delete', controller.question.Delete);

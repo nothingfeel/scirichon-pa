@@ -2,19 +2,12 @@
 const Controller = require('egg').Controller;
 const _ = require('lodash')
 
-class Catalog extends Controller {
+class Point extends Controller {
     async Add() {
 
-        let { section, subject } = this.ctx.query;
 
-        if (!section || !subject) {
-            this.ctx.body = { status: "error" }
-            return;
-        }
-
-
-        let result = await this.app.mongo.db.collection("catalog").find(
-            { section: section, subject: subject, pk1: { "$regex": /^.{10,}$/ } })
+        let result = await this.app.mongo.db.collection("point").find(
+            {  })
             .sort({ _id: 1 }).toArray();
 
         let recordCount = result.length;
@@ -23,32 +16,19 @@ class Catalog extends Controller {
         let sort = 1;
         let beginDate = new Date().getTime();
 
-
-
         for (let item of result) {
-
-            if (item.pk1.length < 30)
-                continue;
-
-            let points = await this.app.mongo.db.collection("catalog").find(
-                { isPoint: true, p_pk: item.pk }).toArray();
-
-            let point_ids = [];
-            if (points.length > 0)
-                point_ids = _.map(points, function (pointItem) {
-                    return pointItem.pointUUID
-                })
             let obj =
             {
-                "uuid": item.pk1,
-                "p_id": item.p_pk1,
+                "uuid": item.UUID,
+                "p_id": item.pointUUID,
                 "name": item.nm,
+                "code":item.fpk, 
                 "sort_num": sort.toString(),
-                "t_m_id": item.t_bk,
+                "section":item.section,
+                "subject":item.subject,
 
                 level: item.level,
-                leaf: item.lastLevel,
-                points: point_ids
+                leaf: item.leaf
             }
             sort++;
             arr.push(obj);
@@ -57,16 +37,16 @@ class Catalog extends Controller {
             if (sort % 10 == 0 || sort + 1 > result.length) {
 
                 console.log(`total = ${result.length} current = ${sort}  time = ${parseInt(new Date().getTime() - beginDate) / 1000}s`)
-                let data = { "data": { "category": "Catalog", fields: arr } }
+                let data = { "data": { "category": "KnowledgePoint", fields: arr } }
                 let res = null;
-                res = await this.service.common.requestUri("/batch/api/catalog", "POST", data)
+                res = await this.service.common.requestUri("/batch/api/knowledge_point", "POST", data)
                 arr = [];
                 if (res && res.data.status == "ok")
                     successCount += res.data.data.length;
             }
         }
         console.log("duang!!!")
-        this.ctx.body = { successCount: successCount, recordCount: recordCount, arr: arr };
+        this.ctx.body = { successCount: successCount, recordCount: recordCount };
     }
 
     async Delete() {
@@ -93,4 +73,4 @@ class Catalog extends Controller {
     }
 }
 
-module.exports = Catalog;
+module.exports = Point;
