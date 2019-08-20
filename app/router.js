@@ -10,7 +10,7 @@ module.exports = app => {
     router.get('/catalog/delete', controller.catalog.Delete);
 
     router.get('/point/add', controller.point.Add);
-   // router.get('/point/delete', controller.point.Delete);
+   router.get('/point/delete', controller.point.Delete);
 
     
     router.get('/question/add', controller.question.Add);

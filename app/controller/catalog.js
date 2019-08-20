@@ -23,8 +23,6 @@ class Catalog extends Controller {
         let sort = 1;
         let beginDate = new Date().getTime();
 
-
-
         for (let item of result) {
 
             if (item.pk1.length < 30)
