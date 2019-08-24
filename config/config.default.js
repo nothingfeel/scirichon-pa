@@ -24,7 +24,14 @@ exports.appConfig = {
     jyeoo: {
 
     },
-    apiHost:"http://192.168.2.222/echo_api",
-    deleteBatchCount:10
+    apiHost: "http://192.168.2.231/echo_api",
+    deleteBatchCount: 10,
+
+    neo4jConfig: {
+        "host": "192.168.2.231",
+        "port": 7687,
+        "user": "neo4j",
+        "password": "echoecho"
+    }
 
 }

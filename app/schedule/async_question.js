@@ -2,13 +2,14 @@ const Subscription = require('egg').Subscription;
 const { ObjectId } = require('bson');
 const _ = require("lodash")
 const cheerio = require('cheerio');
+//const commonService = require('../service/common')
 
 class AsyncQuestion extends Subscription {
     // 通过 schedule 属性来设置定时任务的执行间隔等配置
 
     static get schedule() {
         return {
-            interval: "60s", // 5 分钟间隔
+            interval: "10s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -19,9 +20,7 @@ class AsyncQuestion extends Subscription {
     async subscribe() {
         console.log("begin " + new Date())
 
-        // var ss = await this.getCatalogParents({ _id: "5d2549a5efdd2d02356ffa98", pk: "b05aebe8-d69c-426a-90c1-e474fe8b8e38~25067638-5e61-4dba-b35e-ac656a6560a9~S1" })
-        // console.log("ssssssss = " + JSON.stringify(ss))
-        // return;
+
         let batchCount = 10, index = 0;
         let tasks = await this.getTask();
         let processTasks = [];
@@ -110,21 +109,18 @@ class AsyncQuestion extends Subscription {
             //试题选项-只有客观题才有
             let options = [];
             if (item.ObjectiveFlag == 1) {
-                console.log("UUID= " + item.UUID)
+                //console.log("UUID= " + item.UUID)
                 options = this._matchOptions(item.Content)
             }
             else
                 options = [];
-
-
-
 
             if (item.ObjectiveFlag == 1 && answer.length < 1)//主观题 没有标准答案 就忽略
                 continue;
 
             let obj = {
                 difficulty_value: difficulty_value,
-                catalog: catalogs,
+                //catalog: catalogs,
                 download_total: 0,
                 type: qType,
                 uuid: item.UUID,
@@ -165,7 +161,7 @@ class AsyncQuestion extends Subscription {
         for (let catalog of catalogs) {
 
             let r = await this._getCatalogParents(catalog)
-            let rCatalog = { sort_num: 1, m_id: "", cid1: "", cid2: "", cid3: "", pid3: "" };
+            let rCatalog = { sort_num: 1, m_id: "", cid1: "", cid2: "", cid3: "" };
             let rPoint = { sort_num: 1, pid1: "", pid2: "", pid3: "" }
 
             let c1 = _.find(r.catalogs, { level: 1 });
@@ -266,9 +262,52 @@ class AsyncQuestion extends Subscription {
      */
     async saveQuestion(questions) {
         let data = { "data": { "category": "Question", fields: questions } }
-        let res = null;
-        res = await this.service.common.requestUri("/batch/api/question", "POST", data)
-        console.log("saveQuestion res = " + JSON.stringify(res));
+
+        try {
+            /*
+            //batch api
+            let res = null;
+            res = await this.service.common.requestUri("/batch/api/question", "POST", data)
+            console.log("saveQuestion res = " + JSON.stringify(res));
+*/
+            /*
+            // neo4j
+            for (let item of questions) {
+                item.new_catalogs = JSON.stringify(item.new_catalogs);
+                item.new_points = JSON.stringify(item.new_points)
+                let cql = `CREATE(n:Test1 {
+                    difficulty_value:{difficulty_value},
+                    download_total:{download_total},
+                    type:{type},
+                    uuid:{uuid},
+                    score:{score},
+                    answer:{answer},
+                    answer_des:{answer_des},
+                    analysis:{analysis},
+                    options:{options},
+                    category:{category},
+                    stem:{stem},
+                    source_type:{source_type},
+                    correct_total:{correct_total},
+                    answer_total:{answer_total},
+                    is_objective:{is_objective},
+                    new_catalogs:{new_catalogs},
+                    new_points:{new_points}
+                });`;
+                let sDate = new Date().getTime();
+                await this.service.common.runNeo4j(cql, { ...item });
+                console.log("neo4j res ==> " + (new Date().getTime() - sDate) / 1000)
+            }
+            */
+
+            //mongodb
+            this.app.mongo.insertMany("echo_question", { docs: questions })
+
+        }
+        catch (e) {
+            this.app.logger.debug("saveQuestion catch ==> " + JSON.stringify(e));
+            this.app.logger.debug("data  ==> " + JSON.stringify(data))
+        }
     }
 
     /**

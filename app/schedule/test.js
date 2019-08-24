@@ -19,11 +19,13 @@ class TestHTML extends Subscription {
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
         var dataArr = await mc.find({
-            CommonSection: "初中",
-            CommonSubject:"地理"
+            "tPoint.t_bk": "03367291-ca21-4223-a89d-5ea5fd5b4c3f"
+            // CommonSection: "初中",
+            // CommonSubject: "数学",
+
             // qid: { $exists: true },
             // "catalogs.ct": { $in: ["1", "2"] }
-        }).limit(100).toArray();
+        }).limit(200).sort({DifficultyCoefficient:-1 }).toArray();
         let str = "";
         //console.log(JSON.stringify(dataArr))
         /*
@@ -41,7 +43,8 @@ class TestHTML extends Subscription {
             let li = `    <li class="QUES_LI">
             <fieldset id="b5f5e108-c158-1515-5e76-dba3f25b8ef3" class="quesborder" s="physics"
                 data-cate="1">
-                 <div style="color:red;float:left">【 NO.${index} 】</div>   ${item.Content}
+                 <div style="float:left">【 序号：${index}  ID:${item.UUID} 学科:${item.CommonSubject}  学段:${item.CommonSection} 难度：${item.DifficultyCoefficient} 】</div> 
+                   ${item.Content}
                 <div class="pt3">
 
                 </div>
