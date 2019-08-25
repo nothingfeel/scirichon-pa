@@ -4,7 +4,7 @@ const _ = require("lodash")
 const cheerio = require('cheerio');
 //const commonService = require('../service/common')
 
-class AsyncQuestion extends Subscription {
+class CalcQuestionCatalog extends Subscription {
     // 通过 schedule 属性来设置定时任务的执行间隔等配置
 
     static get schedule() {
@@ -12,7 +12,7 @@ class AsyncQuestion extends Subscription {
             interval: "60s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
@@ -53,23 +53,21 @@ class AsyncQuestion extends Subscription {
                 return mCatalog.p_pk1
             });
 
-            // let sDate = new Date().getTime();
-            // var newCatalog = await this._getNewCatalog1(item.tPoint);
-            //let newCatalog = { rCatalog: [], rPoints: [] };
-            // console.log("getNewCatalog time = " + (new Date().getTime() - sDate) / 1000)
+            let sDate = new Date().getTime();
+            var newCatalog = await this._getNewCatalog(item.tPoint);
+            // let newCatalog = { rCatalog: [], rPoints: [] };
+            console.log("getNewCatalog time = " + (new Date().getTime() - sDate) / 1000)
 
             //试题难度
             let difficulty_value = function (diff) {
-                if (diff >= 0.81)
+                if (diff > 0.75)
                     return 1;
-                else if (diff >= 0.75)
+                else if (diff > 0.5)
                     return 2;
-                else if (diff >= 0.6)
+                else if (diff > 0.25)
                     return 3;
-                else if (diff >= 0.4)
-                    return 4;
                 else
-                    return 5;
+                    return 4;
             }(item.DifficultyCoefficient)
 
             //试题类型
@@ -96,13 +94,13 @@ class AsyncQuestion extends Subscription {
             let answer = [];
             if (item.ObjectiveFlag == 1) {
                 if (item.ObjectiveAnswer == "A")
-                    answer = ["1"];
+                    answer = ["0"];
                 else if (item.ObjectiveAnswer == "B")
-                    answer = ["2"];
+                    answer = ["1"];
                 else if (item.ObjectiveAnswer == "C")
-                    answer = ["3"];
+                    answer = ["2"];
                 else if (item.ObjectiveAnswer == "D")
-                    answer = ["4"];
+                    answer = ["3"];
             }
             else
                 answer = [item.Answer.replace(/<!--.{0,3}-->/g, "")]
@@ -140,10 +138,14 @@ class AsyncQuestion extends Subscription {
                 correct_total: 0,
                 answer_total: 0,
                 is_objective: item.ObjectiveFlag == 1 ? 0 : 1,
-                new_catalogs: item.new_catalogs,
-                new_points: item.new_points
+                new_catalogs: newCatalog.rCatalogs,
+                new_points: newCatalog.rPoints
             }
+
+            //console.log("question ==> " + JSON.stringify(obj))
+            //return;
             questions.push(obj);
+            // return questions;
         }
 
         await this.saveQuestion(questions);
@@ -309,7 +311,8 @@ class AsyncQuestion extends Subscription {
             for (let item of questions) {
                 bulks.push({ insertOne: item });
             }
-            await this.app.mongo.insertMany("echo_question", { docs: questions })
+            // await this.app.mongo.insertMany("echo_question", { docs: questions })
+            await this.app.mongo.bulkWrite(bulks)
 
         }
         catch (e) {
@@ -412,4 +415,4 @@ class AsyncQuestion extends Subscription {
     }
 }
 
-module.exports = AsyncQuestion;
+module.exports = CalcQuestionCatalog;
