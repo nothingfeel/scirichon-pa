@@ -9,7 +9,7 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "20s", // 1 分钟间隔
+            interval: "100s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false

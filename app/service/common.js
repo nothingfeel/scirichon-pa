@@ -55,7 +55,7 @@ class CommonService extends Service {
             result = await session.run(cql, params);
         }
         catch (e) {
-            console.log(JSON.stringify(e))
+            this.app.logger.info("common neo4j error ==>" + JSON.stringify(e))
         }
         finally {
             session.close();
