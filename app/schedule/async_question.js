@@ -9,7 +9,7 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "100s", // 1 分钟间隔
+            interval: "20s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -30,12 +30,12 @@ class AsyncQuestion extends Subscription {
             index++;
             processTasks.push(task);
             let sDate = new Date().getTime();
-            console.log("index=" + index + ", UUID=" + task.UUID)
+            // console.log("index=" + index + ", UUID=" + task.UUID)
             if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
                 let aaaaa = await this.addQuestions(processTasks);
                 console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
                 processTasks = [];//清空一批任务
-
+                //return;
                 // console.log("aaaaaa = " + JSON.stringify(aaaaa))
             }
         }
@@ -148,7 +148,7 @@ class AsyncQuestion extends Subscription {
             questions.push(obj);
         }
 
-        console.log("save question length = " + questions.length)
+        // console.log("save question length = " + questions.length)
         await this.saveQuestion(questions);
         await this.updateMongoQuestion(questions);
         return questions;
@@ -276,6 +276,7 @@ class AsyncQuestion extends Subscription {
 */
 
             // neo4j
+            /*
             for (let item of questions) {
                 item.new_catalogs = JSON.stringify(item.new_catalogs);
                 item.new_points = JSON.stringify(item.new_points)
@@ -304,6 +305,42 @@ class AsyncQuestion extends Subscription {
                 console.log("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
                 this.app.logger.info("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
             }
+            */
+
+            for (let item of questions) {
+                item.new_catalogs = JSON.stringify(item.new_catalogs);
+                item.new_points = JSON.stringify(item.new_points);
+            }
+
+            // let batch = JSON.stringify(questions).replace(/\\\"/g, "");
+            // {batch:${JSON.stringify(batch)}}
+            let cql = `
+            UNWIND {batch} as row
+        CREATE(n:Question)
+       set n.difficulty_value =  row.difficulty_value
+       set n.download_total = row.download_total
+       set n.type = row.type
+       set n.uuid = row.uuid
+       set n.score = row.score
+       set n.answer = row.answer
+       set n.answer_des = row.answer_des
+       set n.analysis = row.analysis
+       set n.options = row.options
+       set n.category = row.category
+       set n.stem = row.stem
+       set n.source_type = row.source_type
+       set n.correct_total = row.correct_total
+       set n.answer_total = row.answer_total
+       set n.is_objective = row.is_objective
+       set n.new_catalogs = row.new_catalogs 
+       set n.new_points = row.new_points
+            `;
+            // console.log("neo4j uuid " + item.uuid)
+            let sDate = new Date().getTime();
+
+            let res = await this.service.common.runNeo4j(cql, { batch: questions });
+            // console.log("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
+            this.app.logger.info("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
 
 
             // console.log("sss ==> " + JSON.stringify(questions));

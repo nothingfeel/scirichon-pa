@@ -51,8 +51,8 @@ class CommonService extends Service {
         // console.log(`cypher to executed:${JSON.stringify({ cql, params }, null, '\t')}`)
         let result = null;
         try {
-
             result = await session.run(cql, params);
+            session.close();
         }
         catch (e) {
             this.app.logger.info("common neo4j error ==>" + JSON.stringify(e))
