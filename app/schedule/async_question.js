@@ -351,7 +351,7 @@ class AsyncQuestion extends Subscription {
         }
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
-        let result = await mc.find({ UUID: { $gt: UUID }, Status: 1, asyncStatus: 0 })
+        let result = await mc.find({ UUID: { $gt: UUID } })
             .limit(1000).sort({ UUID: 1 }).toArray();
         let ids = _.map(result, function (item) { return item.UUID });
         await mc.updateMany({ UUID: { $in: ids } }, { $set: { asyncStatus: 2 } })
