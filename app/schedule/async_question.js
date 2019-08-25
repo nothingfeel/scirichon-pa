@@ -9,7 +9,7 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "20s", // 1 分钟间隔
+            interval: "15s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
             disable: false
@@ -21,7 +21,7 @@ class AsyncQuestion extends Subscription {
         console.log("begin " + new Date())
 
 
-        let batchCount = 10, index = 0;
+        let batchCount = 20, index = 0;
         let tasks = await this.getTask();
         let processTasks = [];
         console.log("task length = " + tasks.length);
@@ -388,7 +388,7 @@ class AsyncQuestion extends Subscription {
         }
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
-        let result = await mc.find({ UUID: { $gt: UUID } })
+        let result = await mc.find({ UUID: { $gt: UUID, asyncStatus: 0 } })
             .limit(1000).sort({ UUID: 1 }).toArray();
         let ids = _.map(result, function (item) { return item.UUID });
         await mc.updateMany({ UUID: { $in: ids } }, { $set: { asyncStatus: 2 } })
