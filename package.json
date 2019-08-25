@@ -16,7 +16,8 @@
     "egg-mongo-native": "^3.4.3",
     "egg-scripts": "^2.11.0",
     "lodash": "^4.17.11",
-    "neo4j-driver": "^1.7.5"
+    "neo4j-driver": "^1.7.5",
+    "uuid": "^3.3.3"
   },
   "devDependencies": {
     "egg-bin": "^4.13.0"

@@ -22,26 +22,45 @@ class CommonService extends Service {
         return res;
     }
 
-    runNeo4j(cql, params) {
+    async runNeo4j(cql, params) {
+        /*
+                return new Promise((resolve, reject) => {
+                    
+                    const neo4jConfig = this.app.config.appConfig.neo4jConfig;
+                    const connStr = "bolt://" + neo4jConfig.host + ":" + neo4jConfig.port;
+                    const neo4jDriver = neo4j.driver(connStr, neo4j.auth.basic(neo4jConfig.user, neo4jConfig.password))
+                    const session = neo4jDriver.session()
+                    // console.log(`cypher to executed:${JSON.stringify({ cql, params }, null, '\t')}`)
+                    session.run(cql, params)
+                        .then(result => {
+                            session.close()
+                            resolve(parse(result))
+                        })
+                        .catch(error => {
+                            session.close()
+                            error = error.fields ? JSON.stringify(error.fields[0]) : String(error)
+                            reject(`error while executing Cypher: ${error}`)
+                        })
+                })
+                */
 
-        return new Promise((resolve, reject) => {
-            
-            const neo4jConfig = this.app.config.appConfig.neo4jConfig;
-            const connStr = "bolt://" + neo4jConfig.host + ":" + neo4jConfig.port;
-            const neo4jDriver = neo4j.driver(connStr, neo4j.auth.basic(neo4jConfig.user, neo4jConfig.password))
-            const session = neo4jDriver.session()
-            console.log(`cypher to executed:${JSON.stringify({ cql, params }, null, '\t')}`)
-            session.run(cql, params)
-                .then(result => {
-                    session.close()
-                    resolve(parse(result))
-                })
-                .catch(error => {
-                    session.close()
-                    error = error.fields ? JSON.stringify(error.fields[0]) : String(error)
-                    reject(`error while executing Cypher: ${error}`)
-                })
-        })
+        const neo4jConfig = this.app.config.appConfig.neo4jConfig;
+        const connStr = "bolt://" + neo4jConfig.host + ":" + neo4jConfig.port;
+        const neo4jDriver = neo4j.driver(connStr, neo4j.auth.basic(neo4jConfig.user, neo4jConfig.password))
+        const session = neo4jDriver.session()
+        // console.log(`cypher to executed:${JSON.stringify({ cql, params }, null, '\t')}`)
+        let result = null;
+        try {
+
+            result = await session.run(cql, params);
+        }
+        catch (e) {
+            console.log(JSON.stringify(e))
+        }
+        finally {
+            session.close();
+        }
+        return result;
     }
 }
 module.exports = CommonService;

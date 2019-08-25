@@ -9,10 +9,10 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "60s", // 1 分钟间隔
+            interval: "20s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
@@ -30,10 +30,10 @@ class AsyncQuestion extends Subscription {
             index++;
             processTasks.push(task);
             let sDate = new Date().getTime();
-            if (index % batchCount == 0 || index + 1 > tasks.length) {
-
+            console.log("index=" + index + ", UUID=" + task.UUID)
+            if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
                 let aaaaa = await this.addQuestions(processTasks);
-                console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s")
+                console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
                 processTasks = [];//清空一批任务
 
                 // console.log("aaaaaa = " + JSON.stringify(aaaaa))
@@ -76,6 +76,8 @@ class AsyncQuestion extends Subscription {
             let qType = function (qType) {
                 if (qType == 1)
                     return "choice";
+                else if (qType == 2)
+                    return "judgement";
                 else if (qType == 3)
                     return "fill";
                 else if (qType == 4)
@@ -146,6 +148,7 @@ class AsyncQuestion extends Subscription {
             questions.push(obj);
         }
 
+        console.log("save question length = " + questions.length)
         await this.saveQuestion(questions);
         await this.updateMongoQuestion(questions);
         return questions;
@@ -271,12 +274,12 @@ class AsyncQuestion extends Subscription {
             res = await this.service.common.requestUri("/batch/api/question", "POST", data)
             console.log("saveQuestion res = " + JSON.stringify(res));
 */
-            /*
+
             // neo4j
             for (let item of questions) {
                 item.new_catalogs = JSON.stringify(item.new_catalogs);
                 item.new_points = JSON.stringify(item.new_points)
-                let cql = `CREATE(n:Test1 {
+                let cql = `CREATE(n:Question {
                     difficulty_value:{difficulty_value},
                     download_total:{download_total},
                     type:{type},
@@ -294,22 +297,26 @@ class AsyncQuestion extends Subscription {
                     is_objective:{is_objective},
                     new_catalogs:{new_catalogs},
                     new_points:{new_points}
-                });`;
+                }) return n;`;
+                // console.log("neo4j uuid " + item.uuid)
                 let sDate = new Date().getTime();
                 await this.service.common.runNeo4j(cql, { ...item });
-                console.log("neo4j res ==> " + (new Date().getTime() - sDate) / 1000)
+                console.log("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
+                this.app.logger.info("neo4j res time ==> " + (new Date().getTime() - sDate) / 1000)
             }
-            */
+
 
             // console.log("sss ==> " + JSON.stringify(questions));
 
 
             //mongodb
+            /*
             let bulks = [];
             for (let item of questions) {
                 bulks.push({ insertOne: item });
             }
             await this.app.mongo.insertMany("echo_question", { docs: questions })
+            */
 
         }
         catch (e) {
@@ -345,7 +352,7 @@ class AsyncQuestion extends Subscription {
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
         let result = await mc.find({ UUID: { $gt: UUID }, Status: 1, asyncStatus: 0 })
-            .limit(100).sort({ UUID: 1 }).toArray();
+            .limit(1000).sort({ UUID: 1 }).toArray();
         let ids = _.map(result, function (item) { return item.UUID });
         await mc.updateMany({ UUID: { $in: ids } }, { $set: { asyncStatus: 2 } })
         await this._updateTaskUUID(UUID, ids[ids.length - 1])

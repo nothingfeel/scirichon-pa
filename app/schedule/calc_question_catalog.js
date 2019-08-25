@@ -12,7 +12,7 @@ class CalcQuestionCatalog extends Subscription {
             interval: "60s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 
