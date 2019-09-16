@@ -12,7 +12,7 @@ class AsyncQuestion extends Subscription {
             interval: "15s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 

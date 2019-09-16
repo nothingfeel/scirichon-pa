@@ -1,6 +1,7 @@
 const Subscription = require('egg').Subscription;
 const fs = require('fs')
 const { ObjectId } = require('bson');
+const _ = require('lodash')
 
 class TestHTML extends Subscription {
     // 通过 schedule 属性来设置定时任务的执行间隔等配置
@@ -10,7 +11,7 @@ class TestHTML extends Subscription {
             interval: "300h", // 5 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
@@ -19,13 +20,22 @@ class TestHTML extends Subscription {
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
         var dataArr = await mc.find({
-            "tPoint.t_bk": "03367291-ca21-4223-a89d-5ea5fd5b4c3f"
+            "UUID": { $lt: "03367291-ca21-4223-a89d-5ea5fd5b4c3f" }
+            , "eH": 0
             // CommonSection: "初中",
             // CommonSubject: "数学",
 
             // qid: { $exists: true },
             // "catalogs.ct": { $in: ["1", "2"] }
-        }).limit(200).sort({DifficultyCoefficient:-1 }).toArray();
+        }).limit(1000).toArray();
+
+        let ids = _.map(dataArr, function (item) { return item.UUID });
+        console.log("ids ==> " + JSON.stringify(ids))
+         await mc.updateMany({ UUID: { $in: ids } }, { $set: { eH: 1 } });
+
+
+
+
         let str = "";
         //console.log(JSON.stringify(dataArr))
         /*
