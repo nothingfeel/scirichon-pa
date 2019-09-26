@@ -11,8 +11,8 @@ class TestHTML extends Subscription {
             interval: "300h", // 5 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
-        };
+            disable: true
+        }
     }
 
     // subscribe 是真正定时任务执行时被运行的函数

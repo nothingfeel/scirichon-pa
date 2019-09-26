@@ -9,10 +9,10 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "15s", // 1 分钟间隔
+            interval: "20s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: true
+            disable: false
         };
     }
 
@@ -20,24 +20,28 @@ class AsyncQuestion extends Subscription {
     async subscribe() {
         console.log("begin " + new Date())
 
-
         let batchCount = 20, index = 0;
         let tasks = await this.getTask();
         let processTasks = [];
         console.log("task length = " + tasks.length);
 
-        for (let task of tasks) {
-            index++;
-            processTasks.push(task);
-            let sDate = new Date().getTime();
-            // console.log("index=" + index + ", UUID=" + task.UUID)
-            if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
-                let aaaaa = await this.addQuestions(processTasks);
-                console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
-                processTasks = [];//清空一批任务
-                //return;
-                // console.log("aaaaaa = " + JSON.stringify(aaaaa))
+        try {
+            for (let task of tasks) {
+                index++;
+                processTasks.push(task);
+                let sDate = new Date().getTime();
+                // console.log("index=" + index + ", UUID=" + task.UUID)
+                if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
+                    let aaaaa = await this.addQuestions(processTasks);
+                    console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
+                    processTasks = [];//清空一批任务
+                    //return;
+                    // console.log("aaaaaa = " + JSON.stringify(aaaaa))
+                }
             }
+        } catch (e) {
+            console.log("eee=>" + JSON.stringify(e));
+
         }
     }
 
@@ -59,7 +63,7 @@ class AsyncQuestion extends Subscription {
             // console.log("getNewCatalog time = " + (new Date().getTime() - sDate) / 1000)
 
             //试题难度
-            let difficulty_value = function (diff) {
+            let difficulty_type = function (diff) {
                 if (diff >= 0.81)
                     return 1;
                 else if (diff >= 0.75)
@@ -93,7 +97,7 @@ class AsyncQuestion extends Subscription {
                 stem = $(".pt1").html();
             else
                 stem = item.Content;
-            stem = stem.replace(/<!--.{0,3}-->/g, "")
+            stem = stem.replace(/<!--.{0,3}-->/g, "").replace(/（判断对错）/g, "").replace(/<br>/g, "<br />");
             //标准答案
             let answer = [];
             if (item.ObjectiveFlag == 1) {
@@ -105,17 +109,21 @@ class AsyncQuestion extends Subscription {
                     answer = ["3"];
                 else if (item.ObjectiveAnswer == "D")
                     answer = ["4"];
+                else if (item.ObjectiveAnswer == "√")
+                    answer = ["1"];
+                else if (item.ObjectiveAnswer == "×")
+                    answer = ["0"]
             }
             else
-                answer = [item.Answer.replace(/<!--.{0,3}-->/g, "")]
+                answer = [item.Answer.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />")]
             //解析
-            let analysis = item.Analys.replace(/<!--.{0,3}-->/g, "");
+            let analysis = item.Analys.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />");
             //解答
-            let answer_des = item.Answer.replace(/<!--.{0,3}-->/g, "");
+            let answer_des = item.Answer.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />");
 
             //试题选项-只有客观题才有
             let options = [];
-            if (item.ObjectiveFlag == 1) {
+            if (item.QuestionType == 1) {
                 //console.log("UUID= " + item.UUID)
                 options = this._matchOptions(item.Content)
             }
@@ -125,8 +133,12 @@ class AsyncQuestion extends Subscription {
             if (item.ObjectiveFlag == 1 && answer.length < 1)//主观题 没有标准答案 就忽略
                 continue;
 
+            if (item.QuestionType == 1 && options.length < 1)
+                continue;
+
             let obj = {
-                difficulty_value: difficulty_value,
+                difficulty_value: item.DifficultyCoefficient,
+                difficulty_type: difficulty_type,
                 //catalog: catalogs,
                 download_total: 0,
                 type: qType,
@@ -149,8 +161,9 @@ class AsyncQuestion extends Subscription {
         }
 
         // console.log("save question length = " + questions.length)
-        await this.saveQuestion(questions);
-        await this.updateMongoQuestion(questions);
+        let saveFlag = await this.saveQuestion(questions);
+        if (saveFlag)
+            await this.updateMongoQuestion(questions);
         return questions;
     }
 
@@ -318,6 +331,7 @@ class AsyncQuestion extends Subscription {
             UNWIND {batch} as row
         CREATE(n:Question)
        set n.difficulty_value =  row.difficulty_value
+       set n.difficulty_type =  row.difficulty_type
        set n.download_total = row.download_total
        set n.type = row.type
        set n.uuid = row.uuid
@@ -359,7 +373,9 @@ class AsyncQuestion extends Subscription {
         catch (e) {
             this.app.logger.debug("saveQuestion catch ==> " + JSON.stringify(e));
             this.app.logger.debug("data  ==> " + JSON.stringify(data))
+            return false;
         }
+        return true;
     }
 
     /**
@@ -403,28 +419,37 @@ class AsyncQuestion extends Subscription {
     _matchOptions(html) {
 
         let options = []
-        let $ = cheerio.load(html, { decodeEntities: false });
+        if (!html || html.length < 1)
+            return options;
+        try {
 
-        let pt2Html = $(".pt2 table").html().replace(/<.{0,2}tbody>/g, "");
-        let $$ = cheerio.load("<table id='opts'>" + pt2Html + "</table>", { decodeEntities: false });
+            let $ = cheerio.load(html, { decodeEntities: false });
 
-        //console.log("html= " + $$.html())
-        let tr = $$("#opts tbody tr").children("td")
-        let trCount = 0, mCount = 0;
-        tr.each(function (i, trElem) {
+            let pt2Html = $(".pt2 table").html().replace(/<.{0,2}tbody>/g, "");
+            let $$ = cheerio.load("<table id='opts'>" + pt2Html + "</table>", { decodeEntities: false });
 
-            mCount++;
-            let tagName = trElem.parentNode.parentNode.parentNode.parentNode.tagName;
-            if (tagName == "body") {
+            //console.log("html= " + $$.html())
+            let tr = $$("#opts tbody tr").children("td")
+            let trCount = 0, mCount = 0;
+            tr.each(function (i, trElem) {
 
-                trCount++;
-                // let o = Object.assign({},trElem);
-                let opHtml = $(this).html().replace(/^\s*<label class>.{0,2}/, "").replace(/\s*<.{0,1}label>/, "")
-                //console.log("tr=>" + opHtml)
-                //console.log("op=>" + $(this).html())
-                options.push(opHtml);
-            }
-        })
+                mCount++;
+                let tagName = trElem.parentNode.parentNode.parentNode.parentNode.tagName;
+                if (tagName == "body") {
+
+                    trCount++;
+                    // let o = Object.assign({},trElem);
+                    let opHtml = $(this).html().replace(/^\s*<label class>.{0,2}/, "").replace(/\s*<.{0,1}label>/, "").replace(/<br>/g, "<br />")
+                    //console.log("tr=>" + opHtml)
+                    //console.log("op=>" + $(this).html())
+                    options.push(opHtml);
+                }
+            })
+        } catch (e) {
+            console.log("errrr=>" + JSON.stringify(e));
+            console.log("html=>" + html);
+            return [];
+        }
         //console.log("tr count=>" + trCount + "  mCount=" + mCount)
         return options;
     }
