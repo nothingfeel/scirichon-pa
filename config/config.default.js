@@ -13,7 +13,38 @@ exports.mongo = {
     //     port: "27017",
     //     name: "spider"
     // }
-}
+};
+exports.mysql = {
+    client: {
+        // host
+        host: 'localhost',
+        // 端口号
+        port: '3306',
+        // 用户名
+        user: 'root',
+        // 密码
+        password: 'mysql',
+        // 数据库名
+        database: 'echo'
+
+        //  // host
+        // host: '192.168.2.231',
+        // // 端口号
+        // port: '3306',
+        // // 用户名
+        // user: 'Echo-MySQL',
+        // // 密码
+        // password: 'Echo-Ap1',
+        // // 数据库名
+        // database: 'echo'
+    },
+    // 是否加载到 app 上，默认开启
+    app: true,
+    // 是否加载到 agent 上，默认关闭
+    agent: false,
+};
+
+
 
 exports.appConfig = {
     agent: {

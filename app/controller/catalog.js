@@ -1,27 +1,29 @@
 
 const Controller = require('egg').Controller;
 const _ = require('lodash')
+const UUID = require("uuid")
 
 class Catalog extends Controller {
     async Add() {
 
-        let { section, subject } = this.ctx.query;
+        // let { section, subject } = this.ctx.query;
 
-        if (!section || !subject) {
-            this.ctx.body = { status: "error" }
-            return;
-        }
+        // if (!section || !subject) {
+        //     this.ctx.body = { status: "error" }
+        //     return;
+        // }
+
+        await this.app.mysql.delete("echo_catalog")
+        await this.app.mysql.delete("echo_catalog_point_rel")
 
 
         let result = await this.app.mongo.db.collection("catalog").find(
-            { section: section, subject: subject, pk1: { "$regex": /^.{10,}$/ } })
+            { pk1: { "$regex": /^.{10,}$/ }})
             .sort({ _id: 1 }).toArray();
 
-        let recordCount = result.length;
-        let successCount = 0;
-        let arr = [];
+        let arr = [], arrr = [];
         let sort = 1;
-        let beginDate = new Date().getTime();
+        let dt = new Date();
 
         for (let item of result) {
 
@@ -31,63 +33,65 @@ class Catalog extends Controller {
             let points = await this.app.mongo.db.collection("catalog").find(
                 { isPoint: true, p_pk: item.pk }).toArray();
 
-            let point_ids = [];
-            if (points.length > 0)
-                point_ids = _.map(points, function (pointItem) {
+            if (points.length > 0) {
+
+                let point_ids = _.map(points, function (pointItem) {
                     return pointItem.pointUUID
                 })
+
+                for (let pointItemId of point_ids) {
+                    arrr.push({ id: UUID.v4(), catalog_id: item.pk1, point_id: pointItemId })
+                }
+            }
+            let subjectObj = this.service.common.getSubjectId(item.section, item.subject)
+            if (subjectObj == null)
+                continue
+            let path = "", parentObj = item;
+            for (let i = item.level; i > 1; i--) {
+                if (parentObj.p_pk1 && parentObj.p_pk1.length>10) {
+                    console.log(`sss => ${parentObj.p_pk1}`)
+                    parentObj = _.find(result, { pk1: parentObj.p_pk1 });
+                    if (parentObj)
+                        path = parentObj.pk1 + "~" + path;
+                    else
+                        break;
+                }
+            }
             let obj =
             {
-                "uuid": item.pk1,
-                "p_id": item.p_pk1,
-                "name": item.nm,
-                "sort_num": sort.toString(),
-                "t_m_id": item.t_bk,
-
+                id: item.pk1,
+                parent_id: item.p_pk1,
+                section: subjectObj.section,
+                subject_id: subjectObj.subject,
+                grade_code: item.t_gd,
+                subject_name: item.subject,
+                teaching_material_id: item.t_bk,
                 level: item.level,
                 leaf: item.lastLevel,
-                points: point_ids
+                catalog_name: item.nm,
+                sort: sort,
+                create_time: dt,
+                update_time: dt,
+                path: path == "" ? path : path.substr(0, path.length - 1)
             }
             sort++;
             arr.push(obj);
 
-
-            if (sort % 10 == 0 || sort + 1 > result.length) {
-
-                console.log(`total = ${result.length} current = ${sort}  time = ${parseInt(new Date().getTime() - beginDate) / 1000}s`)
-                let data = { "data": { "category": "Catalog", fields: arr } }
-                let res = null;
-                res = await this.service.common.requestUri("/batch/api/catalog", "POST", data)
-                arr = [];
-                if (res && res.data.status == "ok")
-                    successCount += res.data.data.length;
+            console.log("sd ==> " + JSON.stringify(obj))
+            if (sort % 2000 == 0 || sort + 2000 >= result.length) {
+                // console.log(arr.length)
+                // console.log(arr[0])
+                // console.log(arrr.length)
+                await this.app.mysql.insert("echo_catalog", arr)
+                if (arrr.length > 0)
+                    await this.app.mysql.insert("echo_catalog_point_rel", arrr)
+                arr = []
+                arrr = []
             }
         }
         console.log("duang!!!")
-        this.ctx.body = { successCount: successCount, recordCount: recordCount, arr: arr };
-    }
 
-    async Delete() {
-        let searchData = {
-            "category": "Catalog",
-            "body": { "query": { "bool": {} } },
-            "source": ["uuid"],
-            "page": 1, "per_page": 5
-        }
-
-        const res = await this.service.common.requestUri("/api/searchByEql", "POST", searchData)
-        let arr = _.map(res.data.data.results, function (item) {
-            return item.uuid;
-        });
-        let Objs = {
-            "data": {
-                "category": "Catalog",
-                uuids: arr
-
-            }
-        };
-        const delRes = await this.service.common.requestUri("/batch/api/catalog", "DELETE", Objs)
-        this.ctx.body = delRes
+        this.ctx.body = {};
     }
 }
 

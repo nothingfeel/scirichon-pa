@@ -2,7 +2,7 @@
 const Controller = require('egg').Controller;
 const _ = require('lodash')
 
-class Catalog extends Controller {
+class Question extends Controller {
     async Add() {
         let { section, subject } = this.ctx.query;
 
@@ -38,39 +38,19 @@ class Catalog extends Controller {
 
             if (sort % 20 == 0 || sort + 20 > result.length) {
 
-                console.log(`total = ${result.length} current = ${sort}  time = ${parseInt(new Date().getTime() - beginDate) / 1000}s`)
-                let data = { "data": { "category": "Catalog", fields: arr } }
-                const res = await this.service.common.requestUri("/batch/api/catalog", "POST", data)
-                arr = [];
-                if (res.data.status == "ok")
-                    successCount += res.data.data.length;
+                
             }
         }
         console.log("done")
-        this.ctx.body = { successCount: successCount, recordCount: recordCount };
+        this.ctx.body = {  };
     }
 
     async Delete() {
-        let searchData = {
-            "category": "Question",
-            "body": { "query": { "bool": {} } },
-            "source": ["uuid"],
-            "page": 1, "per_page": 5
-        }
-
-        const res = await this.service.common.requestUri("/api/searchByEql", "POST", searchData)
-        let arr = _.map(res.data.data.results, function (item) {
-            return item.uuid;
-        });
-        let Objs = {
-            "data": {
-                "category": "Question",
-                uuids: arr
-
-            }
-        };
-        const delRes = await this.service.common.requestUri("/batch/api/question", "DELETE", Objs)
-        this.ctx.body = delRes
+        await this.app.mysql.delete("echo_question", {})
+        await this.app.mysql.delete("echo_question_catalog_rel", {})
+        await this.app.mysql.delete("echo_question_option_rel", {})
+        await this.app.mysql.delete("echo_question_point_rel", {})
+        this.ctx.body={};
     }
 
     async DeleteQuestionSet() {
@@ -127,4 +107,4 @@ class Catalog extends Controller {
     }
 }
 
-module.exports = Catalog;
+module.exports = Question;

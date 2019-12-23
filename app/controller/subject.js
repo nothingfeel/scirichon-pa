@@ -1,20 +1,16 @@
 
 const Controller = require('egg').Controller;
 const _ = require('lodash')
-var UUID = require('uuid');
 
-class TeachingMaterial extends Controller {
+class Subject extends Controller {
     async Add() {
-        await this.app.mysql.delete("echo_teaching_material", {})
-        let result = await this.app.mongo.db.collection("TeachingMaterial").find().sort({ _id: -1 }).toArray();
-
-        let ranking = 1,rr=[];
         let dt = new Date();
+
+        await this.app.mysql.delete("echo_subject",{});
         let arr = [
             { id: 1, section: 1, name: "数学", sort: 1, create_time: dt, update_time: dt },
             { id: 2, section: 1, name: "语文", sort: 2, create_time: dt, update_time: dt },
             { id: 3, section: 1, name: "英语", sort: 3, create_time: dt, update_time: dt },
-
             { id: 4, section: 2, name: "数学", sort: 4, create_time: dt, update_time: dt },
             { id: 5, section: 2, name: "物理", sort: 5, create_time: dt, update_time: dt },
             { id: 6, section: 2, name: "化学", sort: 6, create_time: dt, update_time: dt },
@@ -36,60 +32,9 @@ class TeachingMaterial extends Controller {
             { id: 21, section: 3, name: "历史", sort: 21, create_time: dt, update_time: dt },
         ];
 
-        for (let item of result) {
-
-            let section = 1;
-            if(item.section == "初中")
-                section = 2;
-            if(item.section == "高中")
-                section = 3;
-
-            let subject  =null;
-            subject = _.find(arr,{name:item.subject,section:section})
-            if(subject == null){
-
-                console.log(`subject = ${item.subject} , section = ${item.section}`)
-                continue;
-                // throw new Error("没有找到科目")
-            }
-
-            let obj =
-            {
-                "id":item.bk,
-                "section": section,
-                "subject_id": subject.id,
-                "grade_code": item.gd,
-                "grade_name": item.nm,
-                "name": item.pnm,
-                "sort": ranking,
-                "create_time": dt,
-                "update_time": dt
-            }
-            rr.push(obj);
-            ranking++;
-        }
-
-        let r = await this.app.mysql.insert("echo_teaching_material",rr)
-        this.ctx.body = r;
-
-    }
-
-    async Delete() {
-        const res = await this.service.common.requestUri("/api/teaching_material", "GET", {})
-        let arr = _.map(res.data.data, function (item) {
-            return item.uuid;
-        });
-        arr.length = 10;
-        let Objs = {
-            "data": {
-                "category": "TeachingMaterial",
-                uuids: arr
-
-            }
-        };
-        const delRes = await this.service.common.requestUri("/batch/api/teaching_material", "DELETE", Objs)
-        this.ctx.body = delRes
+       let r = await this.app.mysql.insert("echo_subject",arr);
+       this.ctx.body = r;
     }
 }
 
-module.exports = TeachingMaterial;
+module.exports = Subject;

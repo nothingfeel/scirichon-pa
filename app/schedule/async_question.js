@@ -2,6 +2,7 @@ const Subscription = require('egg').Subscription;
 const { ObjectId } = require('bson');
 const _ = require("lodash")
 const cheerio = require('cheerio');
+const UUID = require("uuid")
 //const commonService = require('../service/common')
 
 class AsyncQuestion extends Subscription {
@@ -9,16 +10,20 @@ class AsyncQuestion extends Subscription {
 
     static get schedule() {
         return {
-            interval: "20s", // 1 分钟间隔
+            interval: "2.5s", // 1 分钟间隔
             type: 'all', // 指定所有的 worker 都需要执行
             immediate: true,
-            disable: false
+            disable: true
         };
     }
 
     // subscribe 是真正定时任务执行时被运行的函数
     async subscribe() {
         console.log("begin " + new Date())
+        // await this.app.mysql.delete("echo_question", {})
+        // await this.app.mysql.delete("echo_question_catalog_rel", {})
+        // await this.app.mysql.delete("echo_question_option_rel", {})
+        // await this.app.mysql.delete("echo_question_point_rel", {})
 
         let batchCount = 20, index = 0;
         let tasks = await this.getTask();
@@ -26,21 +31,24 @@ class AsyncQuestion extends Subscription {
         console.log("task length = " + tasks.length);
 
         try {
-            for (let task of tasks) {
-                index++;
-                processTasks.push(task);
-                let sDate = new Date().getTime();
-                // console.log("index=" + index + ", UUID=" + task.UUID)
-                if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
-                    let aaaaa = await this.addQuestions(processTasks);
-                    console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
-                    processTasks = [];//清空一批任务
-                    //return;
-                    // console.log("aaaaaa = " + JSON.stringify(aaaaa))
-                }
-            }
+            let aaaaa = await this.addQuestions(tasks);
+            // for (let task of tasks) {
+            //     index++;
+            //     processTasks.push(task);
+
+            //     let sDate = new Date().getTime();
+            //     // console.log("index=" + index + ", UUID=" + task.UUID)
+            //     if ((index % batchCount) == 0 || (index + 1) > tasks.length) {
+            //         let aaaaa = await this.addQuestions(processTasks);
+            //         console.log("echo insert Time = " + parseInt(new Date().getTime() - sDate) / 1000 + "s  " + processTasks.length)
+            //         processTasks = [];//清空一批任务
+            //         //return;
+            //         // console.log("aaaaaa = " + JSON.stringify(aaaaa))
+            //     }
+            // }
         } catch (e) {
-            console.log("eee=>" + JSON.stringify(e));
+            console.log("eee=>");
+            this.app.logger.error(e);
 
         }
     }
@@ -50,8 +58,14 @@ class AsyncQuestion extends Subscription {
      * @param {Array} processTasks Mongo的题数组
      */
     async addQuestions(processTasks) {
-        let questions = [];
+        let questions = [], questionCatalog = [], questionPoint = [], questionOption = [];
+        let dt = new Date();
+        let index = 0, largeContext = 0;
         for (let item of processTasks) {
+            let  temp_questionCatalog = [];
+            console.log(`index = ${index}`)
+
+            index++;
             let catalogs = _.map(item.tPoint, function (mCatalog) {
                 // if (mCatalog.pk1.length > 10)//取知识点的父级目录作为echo的题关联的目录
                 return mCatalog.p_pk1
@@ -79,13 +93,13 @@ class AsyncQuestion extends Subscription {
             //试题类型
             let qType = function (qType) {
                 if (qType == 1)
-                    return "choice";
+                    return 1;
                 else if (qType == 2)
-                    return "judgement";
+                    return 2;
                 else if (qType == 3)
-                    return "fill";
+                    return 4;
                 else if (qType == 4)
-                    return "qa";
+                    return 5;
 
             }(item.QuestionType)
 
@@ -98,24 +112,25 @@ class AsyncQuestion extends Subscription {
             else
                 stem = item.Content;
             stem = stem.replace(/<!--.{0,3}-->/g, "").replace(/（判断对错）/g, "").replace(/<br>/g, "<br />");
+
             //标准答案
-            let answer = [];
+            let answer = "";
             if (item.ObjectiveFlag == 1) {
                 if (item.ObjectiveAnswer == "A")
-                    answer = ["1"];
+                    answer = "1";
                 else if (item.ObjectiveAnswer == "B")
-                    answer = ["2"];
+                    answer = "2";
                 else if (item.ObjectiveAnswer == "C")
-                    answer = ["3"];
+                    answer = "4";
                 else if (item.ObjectiveAnswer == "D")
-                    answer = ["4"];
+                    answer = "8";
                 else if (item.ObjectiveAnswer == "√")
-                    answer = ["1"];
+                    answer = "1";
                 else if (item.ObjectiveAnswer == "×")
-                    answer = ["0"]
+                    answer = "2"
             }
             else
-                answer = [item.Answer.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />")]
+                answer = item.Answer.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />")
             //解析
             let analysis = item.Analys.replace(/<!--.{0,3}-->/g, "").replace(/<br>/g, "<br />");
             //解答
@@ -130,40 +145,129 @@ class AsyncQuestion extends Subscription {
             else
                 options = [];
 
-            if (item.ObjectiveFlag == 1 && answer.length < 1)//主观题 没有标准答案 就忽略
+            if (item.ObjectiveFlag == 1 && answer == "")//主观题 没有标准答案 就忽略
                 continue;
 
-            if (item.QuestionType == 1 && options.length < 1)
+            if ((item.QuestionType == 1) && options.length < 1)
                 continue;
+
+            let subjectObj = this.service.common.getSubjectId(item.CommonSection, item.CommonSubject)
+            // if (subjectObj == null)
+            //     continue
+            console.log("uuid = " + item.UUID)
 
             let obj = {
-                difficulty_value: item.DifficultyCoefficient,
-                difficulty_type: difficulty_type,
-                //catalog: catalogs,
-                download_total: 0,
-                type: qType,
-                uuid: item.UUID,
-                score: 1,
-                answer: answer,
-                answer_des: answer_des,
-                analysis: analysis,
-                options: options,
-                category: "Question",
+
+                Id: item.UUID,
+                subject_id: subjectObj.subject,
+                subject_name: item.CommonSubject,
                 stem: stem,
-                source_type: 0,
+                question_type: qType,
+                answer: answer,
+                score: 0,
+                analysis: analysis,
+                answer_description: answer_des,
+                difficulty_type: difficulty_type,
+                difficulty_value: item.DifficultyCoefficient,
+                create_user_id: "",
+                objective: item.ObjectiveFlag,
+                ref_course_total: 0,
+                collection_total: 0,
                 correct_total: 0,
                 answer_total: 0,
-                is_objective: item.ObjectiveFlag == 1 ? 0 : 1,
-                new_catalogs: item.new_catalogs,
-                new_points: item.new_points
+                source_type: 1,
+                create_time: dt,
+                update_time: dt
             }
             questions.push(obj);
+
+            // console.log(`options count = ${options.length}`)
+            // console.log(`options = ${JSON.stringify(options)}`)
+            //选择题选项
+            let sequence_number = 0;
+            for (let item1 of options) {
+                questionOption.push({
+                    Id: UUID.v1(),
+                    question_id: item.UUID,
+                    sequence_number: sequence_number,
+                    item: item1
+                });
+                sequence_number++;
+            }
+            // console.log(`options = ${JSON.stringify(questionOption)}`)
+
+            //目录
+            for (let item1 of item.new_catalogs) {
+                // console.log(`new_catalog = ${JSON.stringify(item1)}`)
+                let catalogObj = {
+                    question_id: item.UUID,
+                    teaching_material_id: item1.m_id,
+                    cid1: item1.cid1,
+                    cid2: item1.cid2,
+                    cid3: item1.cid3
+                }
+                temp_questionCatalog.push(catalogObj);
+            }
+            temp_questionCatalog = _.unionWith(temp_questionCatalog, _.isEqual)
+            for (let item1 of temp_questionCatalog) {
+                item1.Id = UUID.v1();
+                questionCatalog.push(item1);
+            }
+            // console.log(`aa => ${JSON.stringify(questionCatalog)}`)
+
+            //知识点
+            for (let item1 of item.new_points) {
+                // let mcPoint = this.app.mongo.db.collection("point");
+                // let point3Obj = await mcPoint.findOne({ UUID: item1.pid3 });
+                let pointObj = {
+                    Id: UUID.v1(),
+                    question_id: item.UUID,
+                    pid1: item1.pid1,
+                    pid2: item1.pid2,
+                    pid3: item1.pid3
+                    // pid3_name: point3Obj.nm
+                }
+
+                // console.log(JSON.stringify(point3Obj))
+                // console.log(item1.pid3 + " == >" + point3Obj.nm);
+                questionPoint.push(pointObj)
+            }
+
+            if (index % 200 == 0) {
+                // if (questions.length > 0)
+                //     await this.app.mysql.insert("echo_question", questions)
+                // if (questionOption.length > 0)
+                //     await this.app.mysql.insert("echo_question_option_rel", questionOption)
+
+                if (questionCatalog.length > 0)
+                    await this.app.mysql.insert("echo_question_catalog_rel", questionCatalog)
+                // if (questionPoint.length > 0)
+                //     await this.app.mysql.insert("echo_question_point_rel", questionPoint)
+
+                questions = [];
+                questionOption = [];
+                questionCatalog = [];
+                questionPoint = [];
+            }
         }
 
-        // console.log("save question length = " + questions.length)
-        let saveFlag = await this.saveQuestion(questions);
-        if (saveFlag)
-            await this.updateMongoQuestion(questions);
+        // console.log("question = " + JSON.stringify(questions))
+        console.log("question count = " + questions.length)
+        if (largeContext > 0)
+            console.log(`large count = ${largeContext}`)
+
+        // if (questions.length > 0)
+        //     await this.app.mysql.insert("echo_question", questions)
+        // if (questionOption.length > 0)
+        //     await this.app.mysql.insert("echo_question_option_rel", questionOption)
+
+        if (questionCatalog.length > 0)
+            await this.app.mysql.insert("echo_question_catalog_rel", questionCatalog)
+        // if (questionPoint.length > 0)
+        //     await this.app.mysql.insert("echo_question_point_rel", questionPoint)
+
+         await this.updateMongoQuestion(questions);
+        console.log("duang!!!")
         return questions;
     }
 
@@ -384,7 +488,7 @@ class AsyncQuestion extends Subscription {
      */
     async updateMongoQuestion(questions) {
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
-        let ids = _.map(questions, function (item) { return item.uuid });
+        let ids = _.map(questions, function (item) { return item.Id });
         await mc.updateMany({ UUID: { $in: ids } }, { $set: { asyncStatus: 1 } })
     }
 
@@ -404,8 +508,9 @@ class AsyncQuestion extends Subscription {
         }
 
         let mc = this.app.mongo.db.collection("M_Question_infoNew");
-        let result = await mc.find({ UUID: { $gt: UUID }, asyncStatus: 0 })
+        let result = await mc.find({ UUID: { $gt: UUID }, ObjectiveFlag: 1 })
             .limit(1000).sort({ UUID: 1 }).toArray();
+        // let result = await mc.find({UUID:"7551734c-2e26-cf0a-38a6-fb5db4bcb69e"}).toArray();
         let ids = _.map(result, function (item) { return item.UUID });
         await mc.updateMany({ UUID: { $in: ids } }, { $set: { asyncStatus: 2 } })
         await this._updateTaskUUID(UUID, ids[ids.length - 1])

@@ -1,89 +1,70 @@
 
+
 const Controller = require('egg').Controller;
-const _ = require('lodash')
+const _ = require('lodash');
+const UUID = require("uuid")
 
-class Point extends Controller {
+class PointController extends Controller {
     async Add() {
-
-
+        await this.app.mysql.delete("echo_point", {})
         let result = await this.app.mongo.db.collection("point").find({})
             .sort({ _id: 1 }).toArray();
 
+
         let recordCount = result.length;
-        let successCount = 0;
         let arr = [];
         let sort = 1;
-        let beginDate = new Date().getTime();
+        let dt = new Date();
 
         for (let item of result) {
+            let code = item.fpk;
+            let subjectObj = this.service.common.getSubjectId(item.section, item.subject)
+            if (subjectObj == null)
+                continue;
+            let path = "", parentObj = item;
+            for (let i = item.level; i > 1; i--) {
+                if (parentObj.PUUID && parentObj.PUUID.length > 10) {
+                    parentObj = _.find(result, { UUID: parentObj.PUUID });
+                    if (parentObj)
+                        path = parentObj.UUID + "~" + path;
+                    else
+                        break;
+                }
+            }
             let obj =
             {
-                "uuid": item.UUID,
-                "p_id": item.PUUID,
-                "name": item.nm,
-                "code": item.fpk,
-                "sort_num": sort.toString(),
-                "section": item.section,
-                "subject": item.subject,
+                // "uuid": item.UUID,
+                // "p_id": item.PUUID,
+                // "name": item.nm,
+                // "code": item.fpk,
+                // "sort_num": sort.toString(),
+                // "section": item.section,
+                // "subject": item.subject,
+                // level: item.level,
+                // leaf: item.leaf,
 
+                id: item.UUID,
+                subject_id: subjectObj.subject,
+                section: subjectObj.section,
+
+                subject_name: item.subject,
                 level: item.level,
-                leaf: item.leaf
+                leaf: item.leaf,
+                parent_id: item.PUUID,
+                point_name: item.nm,
+                point_code: code,
+                sort: sort,
+                create_time: dt,
+                update_time: dt,
+                path: path == "" ? path : path.substr(0, path.length - 1)
             }
             sort++;
             arr.push(obj);
-
-
-            if (sort % 10 == 0 || sort + 1 > result.length) {
-
-                let data = { "data": { "category": "KnowledgePoint", fields: arr } }
-                let res = null;
-                res = await this.service.common.requestUri("/batch/api/knowledge_point", "POST", data)
-                let insertCount = 0;
-
-                if (res && res.data && res.data.data)
-                    insertCount = res.data.data.length;
-                console.log(`total = ${result.length} current = ${sort}  insertCount = ${insertCount}  time = ${parseInt(new Date().getTime() - beginDate) / 1000}s`)
-                if (insertCount == 0) {
-                    console.log("res = " + JSON.stringify(res))
-                    console.log("err = " + JSON.stringify(arr))
-                }
-                arr = [];
-                if (res && res.data.status == "ok")
-                    successCount += res.data.data.length;
-                // else
-                //     console.log(" pp " + JSON.stringify(res))
-
-            }
         }
+        let r = await this.app.mysql.insert("echo_point", arr)
         console.log("duang!!!")
-        this.ctx.body = { successCount: successCount, recordCount: recordCount };
-    }
-
-    async Delete() {
-        let searchData = {
-            "category": "KnowledgePoint",
-            "body": { "query": { "bool": {} } },
-            "source": ["uuid"],
-
-        }
-
-        const res = await this.service.common.requestUri("/api/searchByEql", "POST", searchData)
-        let arr = _.map(res.data.results, function (item) {
-            return item.uuid;
-        });
-
-        console.log(JSON.stringify(arr));
-
-        let Objs = {
-            "data": {
-                "category": "KnowledgePoint",
-                uuids: arr
-
-            }
-        };
-        const delRes = await this.service.common.requestUri("/batch/api/knowledge_point", "DELETE", Objs)
-        this.ctx.body = delRes
+        this.ctx.body = r;
     }
 }
 
-module.exports = Point;
+module.exports = PointController;
